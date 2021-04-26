@@ -1,6 +1,6 @@
 ![image](https://hub.steampipe.io/images/plugins/turbot/net-social-graphic.png)
 
-# *Net Plugin for Steampipe
+# Net Plugin for Steampipe
 
 Use SQL to query DNS records, certificates and other network information. Open source CLI. No DB required.
 
