@@ -2,38 +2,74 @@
 organization: Turbot
 category: ["internet"]
 icon_url: "/images/plugins/turbot/net.svg"
-brand_color: "#eee"
+brand_color: "#005A9C"
 display_name: Net
 name: net
-description: Network utility tables for IP addresses, DNS, certificates and more.
+description: Steampipe plugin for querying DNS records, certificates and other network information.
+og_description: Query networking information with SQL! Open source CLI. No DB required. 
+og_image: "/images/plugins/turbot/net-social-graphic.png"
 ---
 
-# Net
+# Net + Steampipe
 
-Net provides network utility tables for IP addresses, DNS, certificates and more.
+[Steampipe](https://steampipe.io) is an open source CLI to instantly query cloud APIs using SQL.
 
+[Net] The net plugin is a set of utility tables for steampipe to query attributes of X.509 certificates associated with websites, DNS records and connectivity to specific network socket addresses.
 
-## Installation
+For example:
 
-To download and install the latest net plugin:
+```sql
+select
+  issuer, 
+  not_before as exp_date 
+from 
+  net_certificate
+where
+  domain = 'steampipe.io';
+```
+
+```
++----------------------------+---------------------+
+| issuer                     | exp_date            |
++----------------------------+---------------------+
+| CN=R3,O=Let's Encrypt,C=US | 2021-02-24 03:02:15 |
++----------------------------+---------------------+
+```
+
+## Documentation
+
+- **[Table definitions & examples →](/plugins/turbot/net/tables)**
+
+## Get started
+
+### Install
+
+Download and install the latest Steampipe Net plugin:
 
 ```bash
 steampipe plugin install net
 ```
 
-## Credentials
+### Credentials
 
-None required, this plugin works with public information only.
+| Item | Description |
+| - | - |
+| Credentials | No creds required |
+| Permissions | n/a |
+| Radius | Steampipe limits searches to specific resources based on the provided `Quals` e.g. `domain` for certificates and dns queries and `address` for network connection information |
+| Resolution | n/a |
 
+### Configuration
 
-## Connection Configuration
-
-Connection configurations are defined using HCL in one or more Steampipe config files. Steampipe will load ALL configuration files from `~/.steampipe/config` that have a `.spc` extension. A config file may contain multiple connections.
-
-Installing the latest net plugin will create a default connection named `net` in the `~/.steampipe/config/net.spc` file.  You must edit this connection to include your API token:
+No configuration is needed. Installing the latest net plugin will create a config file (`~/.steampipe/config/net.spc`) with a single connection named `net`:
 
 ```hcl
 connection "net" {
-  plugin  = "net"
+  plugin = "net"
 }
 ```
+
+## Get involved
+
+* Open source: https://github.com/turbot/steampipe-plugin-net
+* Community: [Slack Channel](https://steampipe.slack.com/join/shared_invite/zt-oij778tv-lYyRTWOTMQYBVAbtPSWs3g)
