@@ -20,13 +20,13 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			KeyColumns: plugin.SingleColumn("domain"),
 		},
 		Columns: []*plugin.Column{
-			{Name: "domain", Type: proto.ColumnType_STRING},
-			{Name: "type", Type: proto.ColumnType_STRING},
-			{Name: "ip", Transform: transform.FromField("IP"), Type: proto.ColumnType_IPADDR},
-			{Name: "target", Type: proto.ColumnType_STRING},
-			{Name: "priority", Type: proto.ColumnType_INT},
-			{Name: "value", Type: proto.ColumnType_STRING},
-			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT},
+			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name for the record."},
+			{Name: "type", Type: proto.ColumnType_STRING, Description: "Type of the DNS record: A, CNAME, MX, etc"},
+			{Name: "ip", Transform: transform.FromField("IP"), Type: proto.ColumnType_IPADDR, Description: "IP address for the record, such as for A records."},
+			{Name: "target", Type: proto.ColumnType_STRING, Description: "Target of the record, such as the target address for CNAME records."},
+			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
+			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
+			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
 		},
 	}
 }
