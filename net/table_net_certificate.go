@@ -16,7 +16,8 @@ import (
 
 func tableNetCertificate(ctx context.Context) *plugin.Table {
 	return &plugin.Table{
-		Name: "net_certificate",
+		Name:        "net_certificate",
+		Description: "Certificate details for a domain.",
 		List: &plugin.ListConfig{
 			Hydrate:    tableNetCertificateList,
 			KeyColumns: plugin.SingleColumn("domain"),

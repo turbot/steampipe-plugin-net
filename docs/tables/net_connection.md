@@ -1,6 +1,6 @@
 # Table: net_connection
 
-Certificate details for a domain.
+Test network connectivity to using a network protocol (e.g. TCP) and address / port (e.g. steampipe.io:443).
 
 Note: The `network` and `address` columns must be provided in all queries to this table.
 

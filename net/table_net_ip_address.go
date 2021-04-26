@@ -11,7 +11,8 @@ import (
 
 func tableNetIPAddress(ctx context.Context) *plugin.Table {
 	return &plugin.Table{
-		Name: "net_ip_address",
+		Name:        "net_ip_address",
+		Description: "Information about an IP address.",
 		List: &plugin.ListConfig{
 			Hydrate: tableNetIPAddressList,
 		},

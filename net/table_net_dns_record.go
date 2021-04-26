@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	//"errors"
 	"fmt"
 
 	"github.com/miekg/dns"
@@ -14,7 +13,8 @@ import (
 
 func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 	return &plugin.Table{
-		Name: "net_dns_record",
+		Name:        "net_dns_record",
+		Description: "DNS records associated with a given domain.",
 		List: &plugin.ListConfig{
 			Hydrate:    tableDNSRecordList,
 			KeyColumns: plugin.SingleColumn("domain"),

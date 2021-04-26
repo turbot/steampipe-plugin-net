@@ -11,7 +11,8 @@ import (
 
 func tableNetConnection(ctx context.Context) *plugin.Table {
 	return &plugin.Table{
-		Name: "net_connection",
+		Name:        "net_connection",
+		Description: "Test network connectivity to an address.",
 		List: &plugin.ListConfig{
 			Hydrate:    tableNetConnectionList,
 			KeyColumns: plugin.AllColumns([]string{"network", "address"}),
