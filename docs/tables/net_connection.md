@@ -2,7 +2,7 @@
 
 Test network connectivity to using a network protocol (e.g. TCP) and address / port (e.g. steampipe.io:443).
 
-Note: The `network` and `address` columns must be provided in all queries to this table.
+Note: The `protocol` and `address` columns must be provided in all queries to this table.
 
 ## Examples
 
@@ -14,7 +14,7 @@ select
 from
   net_connection
 where
-  network = 'tcp'
+  protocol = 'tcp'
   and address in 'steampipe.io:443'
 ```
 
@@ -26,7 +26,7 @@ select
 from
   net_connection
 where
-  network = 'udp'
+  protocol = 'udp'
   and address = '1.1.1.1:53'
 ```
 
@@ -38,7 +38,7 @@ select
 from
   net_connection
 where
-  network = 'tcp'
+  protocol = 'tcp'
   and address = '68.183.153.44:ssh'
 ```
 
@@ -50,6 +50,6 @@ select
 from
   net_connection
 where
-  network = 'tcp'
+  protocol = 'tcp'
   and address = '65.2.9.152:3389'
 ```
