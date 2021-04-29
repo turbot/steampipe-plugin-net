@@ -15,7 +15,7 @@ from
   net_connection
 where
   protocol = 'tcp'
-  and address in 'steampipe.io:443'
+  and address = 'steampipe.io:443'
 ```
 
 ### Test a UDP connection to DNS server 1.1.1.1 on port 53
