@@ -182,7 +182,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	logger := plugin.Logger(ctx)
 
 	queryCols := d.QueryContext.Columns
-	domainQualsWrapper := d.QueryContext.Quals["domain"]
+	domainQualsWrapper := d.QueryContext.UnsafeQuals["domain"]
 
 	// You must pass 1 or more domain quals to the query
 	if domainQualsWrapper == nil {
@@ -192,7 +192,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 
 	domains := getDomainQuals(domainQualsWrapper)
 
-	typeQualsWrapper := d.QueryContext.Quals["type"]
+	typeQualsWrapper := d.QueryContext.UnsafeQuals["type"]
 	types := getTypeQuals(typeQualsWrapper)
 
 	logger.Trace("tableDNSRecordList", "Cols", queryCols)
