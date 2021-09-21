@@ -30,7 +30,7 @@ Prerequisites:
 Clone:
 
 ```sh
-git clone git@github.com:turbot/steampipe-plugin-net
+git clone https://github.com/turbot/steampipe-plugin-net.git
 cd steampipe-plugin-net
 ```
 
