@@ -5,5 +5,5 @@ go 1.17
 require (
 	github.com/genkiroid/cert v0.0.0-20191007122723-897560fbbe50
 	github.com/miekg/dns v1.1.41
-	github.com/turbot/steampipe-plugin-sdk v1.6.1
+	github.com/turbot/steampipe-plugin-sdk v1.8.2
 )
