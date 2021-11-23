@@ -1,6 +1,6 @@
 module github.com/turbot/steampipe-plugin-net
 
-go 1.16
+go 1.17
 
 require (
 	github.com/genkiroid/cert v0.0.0-20191007122723-897560fbbe50
