@@ -14,8 +14,11 @@ func tableNetConnection(ctx context.Context) *plugin.Table {
 		Name:        "net_connection",
 		Description: "Test network connectivity to an address.",
 		List: &plugin.ListConfig{
-			Hydrate:    tableNetConnectionList,
-			KeyColumns: plugin.AllColumns([]string{"protocol", "address"}),
+			Hydrate: tableNetConnectionList,
+			KeyColumns: []*plugin.KeyColumn{
+				{Name: "address"},
+				{Name: "protocol", Require: plugin.Optional},
+			},
 		},
 		Columns: []*plugin.Column{
 			// Top columns
@@ -42,9 +45,6 @@ type connectionRow struct {
 func tableNetConnectionList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
 	quals := d.KeyColumnQuals
 	var protocol, address string
-	// NOTE: This is designed for "AnyColumn" instead of "AllColumns" to make usage easier,
-	// but AnyColumn currently stops after it has a single value rather than collecting all
-	// that are specified.
 	if quals["protocol"] != nil {
 		protocol = quals["protocol"].GetStringValue()
 	} else {
