@@ -1,3 +1,9 @@
+## v0.1.0 [2021-12-21]
+
+_Enhancements_
+
+- The `protocol` column of `net_connection` is now optional and it defaults to `tcp`
+
 ## v0.0.2 [2021-11-23]
 
 _What's new?_
