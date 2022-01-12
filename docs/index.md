@@ -14,7 +14,7 @@ og_image: "/images/plugins/turbot/net-social-graphic.png"
 
 [Steampipe](https://steampipe.io) is an open source CLI to instantly query cloud APIs using SQL.
 
-[Net] The net plugin is a set of utility tables for steampipe to query attributes of X.509 certificates associated with websites, DNS records and connectivity to specific network socket addresses.
+The net plugin is a set of utility tables for steampipe to query attributes of X.509 certificates associated with websites, DNS records and connectivity to specific network socket addresses.
 
 For example:
 
@@ -72,4 +72,4 @@ connection "net" {
 ## Get involved
 
 * Open source: https://github.com/turbot/steampipe-plugin-net
-* Community: [Slack Channel](https://steampipe.slack.com/join/shared_invite/zt-oij778tv-lYyRTWOTMQYBVAbtPSWs3g)
+* Community: [Slack Channel](https://steampipe.io/community/join)

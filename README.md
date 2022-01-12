@@ -6,7 +6,7 @@ Use SQL to query DNS records, certificates and other network information. Open s
 
 * **[Get started →](https://hub.steampipe.io/plugins/turbot/net)**
 * Documentation: [Table definitions & examples](https://hub.steampipe.io/plugins/turbot/net/tables)
-* Community: [Slack Channel](https://steampipe.slack.com/join/shared_invite/zt-oij778tv-lYyRTWOTMQYBVAbtPSWs3g)
+* Community: [Slack Channel](https://steampipe.io/community/join)
 * Get involved: [Issues](https://github.com/turbot/steampipe-plugin-net/issues)
 
 ## Quick start
@@ -61,8 +61,3 @@ Please see the [contribution guidelines](https://github.com/turbot/steampipe/blo
 `help wanted` issues:
 - [Steampipe](https://github.com/turbot/steampipe/labels/help%20wanted)
 - [Net Plugin](https://github.com/turbot/steampipe-plugin-net/labels/help%20wanted)
-
-
-
-
-
