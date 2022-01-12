@@ -1,3 +1,10 @@
+## v0.1.1 [2022-01-12]
+
+_Enhancements_
+
+- Updated the Slack channel links in the `docs/index.md` and the `README.md` files ([#18](https://github.com/turbot/steampipe-plugin-net/pull/18))
+- Recompiled plugin with [steampipe-plugin-sdk v1.8.3](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v183--2021-12-23) ([#19](https://github.com/turbot/steampipe-plugin-net/pull/19))
+
 ## v0.1.0 [2021-12-21]
 
 _Enhancements_
