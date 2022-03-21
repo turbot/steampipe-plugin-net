@@ -6,9 +6,9 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/turbot/steampipe-plugin-sdk/v2/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v2/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v2/plugin/transform"
+	"github.com/turbot/steampipe-plugin-sdk/v3/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v3/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v3/plugin/transform"
 )
 
 func tableNetDNSRecord(ctx context.Context) *plugin.Table {
@@ -30,6 +30,11 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
 			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
 			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
+			{Name: "serial", Type: proto.ColumnType_INT, Description: "Serial number of the record, such as for SOA records."},
+			{Name: "mbox", Type: proto.ColumnType_STRING, Description: "Specifies the hostmaster email address."},
+			{Name: "refresh", Type: proto.ColumnType_INT, Description: "Specifies the SOA refresh interval. The value configures how often a name server should check it's primary server to see if there has been any updates to the zone which it does by comparing Serial numbers."},
+			{Name: "retry", Type: proto.ColumnType_INT, Description: "Specifies SOA retry value. The value indicates how long a name server should wait to retry an attempt to get fresh zone data from the primary name server if the first attempt should fail."},
+			{Name: "expire", Type: proto.ColumnType_INT, Description: "Specifies SOA expire value. A name server will no longer consider itself Authoritative if it hasn't been able to refresh the zone data in the time limit declared in this value."},
 		},
 	}
 }
@@ -42,6 +47,11 @@ type tableDNSRecordRow struct {
 	TTL      uint32
 	Priority uint16
 	Value    string
+	Serial   uint32
+	Mbox     string
+	Refresh  uint32
+	Retry    uint32
+	Expire   uint32
 }
 
 func getDomainQuals(domainQualsWrapper *proto.Quals) []string {
@@ -155,10 +165,15 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 		})
 	case *dns.SOA:
 		records = append(records, tableDNSRecordRow{
-			Domain: domain,
-			Type:   dnsType,
-			Target: typedRecord.Ns,
-			TTL:    typedRecord.Hdr.Ttl,
+			Domain:  domain,
+			Type:    dnsType,
+			Target:  typedRecord.Ns,
+			TTL:     typedRecord.Hdr.Ttl,
+			Serial:  typedRecord.Serial,
+			Mbox:    typedRecord.Mbox,
+			Refresh: typedRecord.Refresh,
+			Retry:   typedRecord.Retry,
+			Expire:  typedRecord.Expire,
 		})
 	case *dns.SRV:
 		records = append(records, tableDNSRecordRow{
