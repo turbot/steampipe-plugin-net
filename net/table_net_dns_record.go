@@ -16,8 +16,11 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 		Name:        "net_dns_record",
 		Description: "DNS records associated with a given domain.",
 		List: &plugin.ListConfig{
-			Hydrate:    tableDNSRecordList,
-			KeyColumns: plugin.SingleColumn("domain"),
+			Hydrate: tableDNSRecordList,
+			KeyColumns: plugin.KeyColumnSlice{
+				{Name: "domain", Require: plugin.Required, Operators: []string{"="}},
+				{Name: "type", Require: plugin.Optional, Operators: []string{"="}},
+			},
 		},
 		Columns: []*plugin.Column{
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name for the record."},
