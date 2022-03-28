@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/miekg/dns"
 
@@ -26,7 +27,7 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 		Columns: []*plugin.Column{
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name for the record."},
 			{Name: "type", Type: proto.ColumnType_STRING, Description: "Type of the DNS record: A, CNAME, MX, etc"},
-			{Name: "dns_server", Type: proto.ColumnType_STRING, Description: "Type of the DNS record: A, CNAME, MX, etc", Transform: transform.FromField("DNSServer")},
+			{Name: "dns_server", Type: proto.ColumnType_STRING, Description: "Type of the DNS record: A, CNAME, MX, etc", Transform: transform.FromQual("dns_server")},
 			{Name: "ip", Transform: transform.FromField("IP"), Type: proto.ColumnType_IPADDR, Description: "IP address for the record, such as for A records."},
 			{Name: "target", Type: proto.ColumnType_STRING, Description: "Target of the record, such as the target address for CNAME records."},
 			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
@@ -70,19 +71,6 @@ func getDomainQuals(domainQualsWrapper *proto.Quals) []string {
 		domains = append(domains, domainQuals.GetStringValue())
 	}
 	return domains
-}
-
-func getDNSServerQuals(dnsServerQualsWrapper *proto.Quals) []string {
-	var dnsServers []string
-	dnsServerQuals := dnsServerQualsWrapper.Quals[0].Value
-	if qualList := dnsServerQuals.GetListValue(); qualList != nil {
-		for _, q := range qualList.Values {
-			dnsServers = append(dnsServers, q.GetStringValue())
-		}
-	} else {
-		dnsServers = append(dnsServers, dnsServerQuals.GetStringValue())
-	}
-	return dnsServers
 }
 
 func getTypeQuals(typeQualsWrapper *proto.Quals) []string {
@@ -238,50 +226,49 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	// Use our configuration for the timeout
 	c.Timeout = GetConfigTimeout(ctx, d)
 
-	var dnsServers []string
-	dnsServerQualsWrapper := d.QueryContext.UnsafeQuals["dns_server"]
-	if dnsServerQualsWrapper != nil {
-		dnsServers = getDNSServerQuals(dnsServerQualsWrapper)
+	var dnsServer string
+	if d.KeyColumnQuals["dns_server"] != nil {
+		dnsServer = d.KeyColumnQualString("dns_server")
+		if !strings.HasSuffix(dnsServer, ":53") {
+			dnsServer = fmt.Sprintf("%s:53", dnsServer)
+		}
 	} else {
-		dnsServers = append(dnsServers, GetConfigDNSServerAndPort(ctx, d))
+		dnsServer = GetConfigDNSServerAndPort(ctx, d)
 	}
 
 	logger.Trace("tableDNSRecordList", "Cols", queryCols)
 	logger.Trace("tableDNSRecordList", "Domains", domains)
 	logger.Trace("tableDNSRecordList", "Types", types)
-	logger.Trace("tableDNSRecordList", "DNS Servers", dnsServers)
+	logger.Trace("tableDNSRecordList", "DNS Server", dnsServer)
 
-	for _, dnsServer := range dnsServers {
-		for _, domain := range domains {
-			for _, dnsType := range types {
-				dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
-				if err != nil {
-					logger.Error(err.Error())
-					continue
-				}
+	for _, domain := range domains {
+		for _, dnsType := range types {
+			dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
+			if err != nil {
+				logger.Error(err.Error())
+				continue
+			}
 
-				m := new(dns.Msg)
-				m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
-				m.RecursionDesired = true
-				r, _, err := c.Exchange(m, dnsServer)
-				if err != nil {
-					return nil, err
-				}
-				if r.Rcode != dns.RcodeSuccess {
-					return nil, err
-				}
+			m := new(dns.Msg)
+			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
+			m.RecursionDesired = true
+			r, _, err := c.Exchange(m, dnsServer)
+			if err != nil {
+				return nil, err
+			}
+			if r.Rcode != dns.RcodeSuccess {
+				return nil, err
+			}
 
-				logger.Trace("tableDNSRecordList", "Question", r.Question)
-				logger.Trace("tableDNSRecordList", "Answer", r.Answer)
-				logger.Trace("tableDNSRecordList", "Extra", r.Extra)
-				logger.Trace("tableDNSRecordList", "NS", r.Ns)
+			logger.Trace("tableDNSRecordList", "Question", r.Question)
+			logger.Trace("tableDNSRecordList", "Answer", r.Answer)
+			logger.Trace("tableDNSRecordList", "Extra", r.Extra)
+			logger.Trace("tableDNSRecordList", "NS", r.Ns)
 
-				for _, answer := range r.Answer {
-					for _, record := range getRecords(domain, dnsType, answer) {
-						logger.Trace("tableDNSRecordList", "Record", record)
-						record.DNSServer = dnsServer
-						d.StreamListItem(ctx, record)
-					}
+			for _, answer := range r.Answer {
+				for _, record := range getRecords(domain, dnsType, answer) {
+					logger.Trace("tableDNSRecordList", "Record", record)
+					d.StreamListItem(ctx, record)
 				}
 			}
 		}
