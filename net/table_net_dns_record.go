@@ -207,15 +207,13 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	logger := plugin.Logger(ctx)
 
 	queryCols := d.QueryContext.Columns
-	domainQualsWrapper := d.QueryContext.UnsafeQuals["domain"]
 
 	// You must pass 1 or more domain quals to the query
-	if domainQualsWrapper == nil {
+	if d.KeyColumnQuals["domain"] == nil {
 		logger.Trace("tableDNSRecordList", "No domain quals provided")
 		return nil, nil
 	}
-
-	domains := getDomainQuals(domainQualsWrapper)
+	domain := d.KeyColumnQualString("domain")
 
 	typeQualsWrapper := d.QueryContext.UnsafeQuals["type"]
 	types := getTypeQuals(typeQualsWrapper)
@@ -237,39 +235,37 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	}
 
 	logger.Trace("tableDNSRecordList", "Cols", queryCols)
-	logger.Trace("tableDNSRecordList", "Domains", domains)
+	logger.Info("tableDNSRecordList", "Domain", domain)
 	logger.Trace("tableDNSRecordList", "Types", types)
-	logger.Trace("tableDNSRecordList", "DNS Server", dnsServer)
+	logger.Info("tableDNSRecordList", "DNS Server", dnsServer)
 
-	for _, domain := range domains {
-		for _, dnsType := range types {
-			dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
-			if err != nil {
-				logger.Error(err.Error())
-				continue
-			}
+	for _, dnsType := range types {
+		dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
+		if err != nil {
+			logger.Error(err.Error())
+			continue
+		}
 
-			m := new(dns.Msg)
-			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
-			m.RecursionDesired = true
-			r, _, err := c.Exchange(m, dnsServer)
-			if err != nil {
-				return nil, err
-			}
-			if r.Rcode != dns.RcodeSuccess {
-				return nil, err
-			}
+		m := new(dns.Msg)
+		m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
+		m.RecursionDesired = true
+		r, _, err := c.Exchange(m, dnsServer)
+		if err != nil {
+			return nil, err
+		}
+		if r.Rcode != dns.RcodeSuccess {
+			return nil, err
+		}
 
-			logger.Trace("tableDNSRecordList", "Question", r.Question)
-			logger.Trace("tableDNSRecordList", "Answer", r.Answer)
-			logger.Trace("tableDNSRecordList", "Extra", r.Extra)
-			logger.Trace("tableDNSRecordList", "NS", r.Ns)
+		logger.Trace("tableDNSRecordList", "Question", r.Question)
+		logger.Trace("tableDNSRecordList", "Answer", r.Answer)
+		logger.Trace("tableDNSRecordList", "Extra", r.Extra)
+		logger.Trace("tableDNSRecordList", "NS", r.Ns)
 
-			for _, answer := range r.Answer {
-				for _, record := range getRecords(domain, dnsType, answer) {
-					logger.Trace("tableDNSRecordList", "Record", record)
-					d.StreamListItem(ctx, record)
-				}
+		for _, answer := range r.Answer {
+			for _, record := range getRecords(domain, dnsType, answer) {
+				logger.Trace("tableDNSRecordList", "Record", record)
+				d.StreamListItem(ctx, record)
 			}
 		}
 	}
