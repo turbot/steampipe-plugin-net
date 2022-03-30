@@ -2,6 +2,7 @@ package net
 
 import (
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/turbot/steampipe-plugin-sdk/v3/grpc/proto"
 )
@@ -65,4 +66,21 @@ type baseRequestAttributes struct {
 	Methods     []string
 	RequestBody string
 	Headers     map[string]string
+}
+
+func removeInvalidUTF8Char(str string) string {
+	if !utf8.ValidString(str) {
+		v := make([]rune, 0, len(str))
+		for i, r := range str {
+			if r == utf8.RuneError {
+				_, size := utf8.DecodeRuneInString(str[i:])
+				if size == 1 {
+					continue
+				}
+			}
+			v = append(v, r)
+		}
+		str = string(v)
+	}
+	return str
 }

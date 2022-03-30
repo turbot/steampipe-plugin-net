@@ -135,7 +135,7 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 
 		// Close response reading
 		res.Body.Close()
-		body := buf.String()
+		body := removeInvalidUTF8Char(buf.String())
 
 		// Generate table row item
 		item := tableNetRequestRow{
