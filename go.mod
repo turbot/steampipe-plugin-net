@@ -1,11 +1,11 @@
 module github.com/turbot/steampipe-plugin-net
 
-go 1.17
+go 1.18
 
 require (
 	github.com/genkiroid/cert v0.0.0-20191007122723-897560fbbe50
 	github.com/miekg/dns v1.1.47
-	github.com/turbot/steampipe-plugin-sdk/v3 v3.0.1
+	github.com/turbot/steampipe-plugin-sdk/v3 v3.1.0
 )
 
 require (
@@ -49,6 +49,6 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/grpc v1.44.0 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
+	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v2 v2.2.3 // indirect
 )

@@ -54,11 +54,13 @@ type tableNetRequestRow struct {
 	Body                               string
 	Error                              string
 	HeaderContentSecurityPolicy        string
+	HeaderStrictTransportSecurity      string
 	HeaderContentType                  string
 	HeaderCrossSiteScriptingProtection string
 	HeaderPermissionsPolicy            string
 	HeaderReferrerPolicy               string
 	HeaderXFrameOptions                string
+	HeaderXContentTypeOptions          string
 }
 
 type baseRequestAttributes struct {

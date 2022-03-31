@@ -21,7 +21,7 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			KeyColumns: plugin.KeyColumnSlice{
 				{Name: "domain", Require: plugin.Required, Operators: []string{"="}},
 				{Name: "type", Require: plugin.Optional, Operators: []string{"="}},
-				{Name: "dns_server", Require: plugin.Optional, Operators: []string{"="}},
+				{Name: "dns_server", Require: plugin.Optional, Operators: []string{"="}, CacheMatch: "exact"},
 			},
 		},
 		Columns: []*plugin.Column{
