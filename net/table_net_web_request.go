@@ -11,15 +11,18 @@ import (
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin/transform"
 )
 
-func tableNetRequest() *plugin.Table {
+func tableNetWebRequest() *plugin.Table {
 	return &plugin.Table{
-		Name: "net_request",
+		Name: "net_web_request",
 		List: &plugin.ListConfig{
 			ParentHydrate: listBaseRequestAttributes,
 			Hydrate:       listRequestResponses,
 			KeyColumns: plugin.KeyColumnSlice{
 				{Name: "url", Require: plugin.Required},
 				{Name: "method", Require: plugin.Optional},
+				// TODO: Do JSONB columns work as quals? If not, is string type ok?
+				{Name: "request_headers", Require: plugin.Optional},
+				// TODO: Remove request_header_* columns in favor of request_headers once working
 				{Name: "request_header_authorization", Require: plugin.Optional},
 				{Name: "request_header_content_type", Require: plugin.Optional},
 				{Name: "request_body", Require: plugin.Optional},
@@ -29,20 +32,13 @@ func tableNetRequest() *plugin.Table {
 			{Name: "url", Transform: transform.FromField("Url"), Type: proto.ColumnType_STRING},
 			{Name: "method", Type: proto.ColumnType_STRING},
 			{Name: "request_body", Type: proto.ColumnType_STRING},
+			{Name: "request_headers", Type: proto.ColumnType_JSON},
 			{Name: "request_header_authorization", Type: proto.ColumnType_STRING},
 			{Name: "request_header_content_type", Type: proto.ColumnType_STRING},
-			{Name: "status_code", Type: proto.ColumnType_INT},
-			{Name: "body", Type: proto.ColumnType_STRING},
-			{Name: "error", Type: proto.ColumnType_STRING},
-			{Name: "headers", Type: proto.ColumnType_JSON},
-			{Name: "header_strict_transport_security", Type: proto.ColumnType_STRING},
-			{Name: "header_content_security_policy", Type: proto.ColumnType_STRING},
-			{Name: "header_content_type", Type: proto.ColumnType_STRING},
-			{Name: "header_permissions_policy", Type: proto.ColumnType_STRING},
-			{Name: "header_referrer_policy", Type: proto.ColumnType_STRING},
-			{Name: "header_x_content_type_options", Type: proto.ColumnType_STRING},
-			{Name: "header_x_frame_options", Type: proto.ColumnType_STRING},
-			{Name: "header_x_xss_protection", Type: proto.ColumnType_STRING},
+			{Name: "response_status_code", Type: proto.ColumnType_INT},
+			{Name: "response_body", Type: proto.ColumnType_STRING},
+			{Name: "response_error", Type: proto.ColumnType_STRING},
+			{Name: "response_headers", Type: proto.ColumnType_JSON},
 		},
 	}
 }
@@ -140,23 +136,15 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 		body := removeInvalidUTF8Char(buf.String())
 
 		// Generate table row item
-		item := tableNetRequestRow{
-			Url:                                url,
-			Method:                             method,
-			RequestBody:                        requestBody,
-			RequestHeaderContentType:           headers["Content-Type"],
-			RequestHeaderAuthorization:         headers["Authorization"],
-			StatusCode:                         res.StatusCode,
-			Headers:                            res.Header,
-			Body:                               body,
-			HeaderContentType:                  res.Header.Get("Content-Type"),
-			HeaderStrictTransportSecurity:      res.Header.Get("Strict-Transport-Security"),
-			HeaderContentSecurityPolicy:        res.Header.Get("Content-Security-Policy"),
-			HeaderXFrameOptions:                res.Header.Get("X-Frame-Options"),
-			HeaderXContentTypeOptions:          res.Header.Get("X-Content-Type-Options"),
-			HeaderReferrerPolicy:               res.Header.Get("Referrer-Policy"),
-			HeaderPermissionsPolicy:            res.Header.Get("Permissions-Policy"),
-			HeaderCrossSiteScriptingProtection: res.Header.Get("X-XSS-Protection"),
+		item := tableNetWebRequestRow{
+			Url:                        url,
+			Method:                     method,
+			RequestBody:                requestBody,
+			RequestHeaderContentType:   headers["Content-Type"],
+			RequestHeaderAuthorization: headers["Authorization"],
+			ResponseStatusCode:         res.StatusCode,
+			ResponseHeaders:            res.Header,
+			ResponseBody:               body,
 		}
 		if requestErr != nil {
 			logger.Error("listRequestResponses do request error", "url", url, "request method", req.Method, "error", requestErr.Error())
