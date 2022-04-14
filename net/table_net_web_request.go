@@ -3,6 +3,7 @@ package net
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -20,23 +21,26 @@ func tableNetWebRequest() *plugin.Table {
 			KeyColumns: plugin.KeyColumnSlice{
 				{Name: "url", Require: plugin.Required},
 				{Name: "method", Require: plugin.Optional},
-				// TODO: Do JSONB columns work as quals? If not, is string type ok?
-				{Name: "request_headers", Require: plugin.Optional},
+				// TODO: Rename to request_headers_text (check blog post/other instances/AWS CFN stack)?
+				{Name: "request_headers", Require: plugin.Optional, CacheMatch: "exact"},
 				// TODO: Remove request_header_* columns in favor of request_headers once working
-				{Name: "request_header_authorization", Require: plugin.Optional},
-				{Name: "request_header_content_type", Require: plugin.Optional},
-				{Name: "request_body", Require: plugin.Optional},
+				//{Name: "request_header_authorization", Require: plugin.Optional},
+				//{Name: "request_header_content_type", Require: plugin.Optional},
+				{Name: "request_body", Require: plugin.Optional, CacheMatch: "exact"},
 			},
 		},
 		Columns: []*plugin.Column{
 			{Name: "url", Transform: transform.FromField("Url"), Type: proto.ColumnType_STRING},
 			{Name: "method", Type: proto.ColumnType_STRING},
 			{Name: "request_body", Type: proto.ColumnType_STRING},
-			{Name: "request_headers", Type: proto.ColumnType_JSON},
-			{Name: "request_header_authorization", Type: proto.ColumnType_STRING},
-			{Name: "request_header_content_type", Type: proto.ColumnType_STRING},
+			{Name: "request_headers", Type: proto.ColumnType_STRING},
+			//{Name: "request_header_authorization", Type: proto.ColumnType_STRING},
+			//{Name: "request_header_content_type", Type: proto.ColumnType_STRING},
+			// TODO: Does it need response_?
+			{Name: "status_code", Type: proto.ColumnType_INT},
 			{Name: "response_status_code", Type: proto.ColumnType_INT},
 			{Name: "response_body", Type: proto.ColumnType_STRING},
+			// TODO: Does it need response_? What is this?
 			{Name: "response_error", Type: proto.ColumnType_STRING},
 			{Name: "response_headers", Type: proto.ColumnType_JSON},
 		},
@@ -50,22 +54,40 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	var requestBody string
 	headers := make(map[string]string)
 
+	logger.Info("listBaseRequestAttributes", "Headers", headers)
+
 	queryCols := d.KeyColumnQuals
 
 	urls := getQuals(queryCols["url"])
+	logger.Info("listBaseRequestAttributes", "URLs", urls)
+	logger.Info("listBaseRequestAttributes", "Query cols", queryCols)
 	if queryCols["method"] != nil {
 		methods = getQuals(queryCols["method"])
 	} else {
 		methods = []string{"GET"}
 	}
 
-	if authHeader, present := getAuthHeaderQuals(queryCols["request_header_authorization"]); present {
-		headers["Authorization"] = authHeader
+	requestHeadersString := queryCols["request_headers"].GetStringValue()
+	logger.Info("listBaseRequestAttributes", "Headers String", requestHeadersString)
+
+	// TODO: How to handle headers with same key and different values? Use comma delimited?
+	if requestHeadersString != "" {
+		json.Unmarshal([]byte(requestHeadersString), &headers)
 	}
 
-	if contentTypeHeader, present := getAuthHeaderQuals(queryCols["request_header_content_type"]); present {
-		headers["Content-Type"] = contentTypeHeader
+	for k, v := range headers {
+		logger.Info("listBaseRequestAttributes", "Header", k, v)
 	}
+
+	/*
+		if authHeader, present := getAuthHeaderQuals(queryCols["request_header_authorization"]); present {
+			headers["Authorization"] = authHeader
+		}
+
+		if contentTypeHeader, present := getAuthHeaderQuals(queryCols["request_header_content_type"]); present {
+			headers["Content-Type"] = contentTypeHeader
+		}
+	*/
 
 	if requestBodyData, present := getAuthHeaderQuals(queryCols["request_body"]); present {
 		requestBody = requestBodyData
@@ -86,10 +108,18 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 	logger := plugin.Logger(ctx)
 	baseRequestAttribute := h.Item.(baseRequestAttributes)
 
+	logger.Info("listRequestResponses", "Attributes", baseRequestAttribute)
+
 	url := baseRequestAttribute.Url
 	methods := baseRequestAttribute.Methods
 	headers := baseRequestAttribute.Headers
 	requestBody := baseRequestAttribute.RequestBody
+
+	// TODO: Should this be an argument? Default to false (secure by default)?
+	//tr := &http.Transport{
+	//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	//}
+	//client := &http.Client{Transport: tr}
 	client := &http.Client{}
 
 	// Execute the request for each type of method per url
@@ -120,6 +150,8 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 
 		req = addRequestHeaders(req, headers)
 
+		logger.Info("Request:", req)
+
 		// Make request
 		res, requestErr = client.Do(req)
 
@@ -135,16 +167,23 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 		res.Body.Close()
 		body := removeInvalidUTF8Char(buf.String())
 
+		queryCols := d.KeyColumnQuals
+		requestHeadersString := queryCols["request_headers"].GetStringValue()
+		logger.Info("listRequestResponses", "Headers String", requestHeadersString)
+
+		// TODO: Can we show the full redirect res chain?
+		// TODO: What cert info do we get?
 		// Generate table row item
 		item := tableNetWebRequestRow{
-			Url:                        url,
-			Method:                     method,
-			RequestBody:                requestBody,
-			RequestHeaderContentType:   headers["Content-Type"],
-			RequestHeaderAuthorization: headers["Authorization"],
-			ResponseStatusCode:         res.StatusCode,
-			ResponseHeaders:            res.Header,
-			ResponseBody:               body,
+			Url:            url,
+			Method:         method,
+			RequestBody:    requestBody,
+			RequestHeaders: requestHeadersString,
+			//RequestHeaderContentType:   headers["Content-Type"],
+			//RequestHeaderAuthorization: headers["Authorization"],
+			ResponseStatusCode: res.StatusCode,
+			ResponseHeaders:    res.Header,
+			ResponseBody:       body,
 		}
 		if requestErr != nil {
 			logger.Error("listRequestResponses do request error", "url", url, "request method", req.Method, "error", requestErr.Error())
