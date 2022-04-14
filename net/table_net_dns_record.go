@@ -60,19 +60,6 @@ type tableDNSRecordRow struct {
 	Expire    uint32
 }
 
-func getDomainQuals(domainQualsWrapper *proto.Quals) []string {
-	var domains []string
-	domainQuals := domainQualsWrapper.Quals[0].Value
-	if qualList := domainQuals.GetListValue(); qualList != nil {
-		for _, q := range qualList.Values {
-			domains = append(domains, q.GetStringValue())
-		}
-	} else {
-		domains = append(domains, domainQuals.GetStringValue())
-	}
-	return domains
-}
-
 func getTypeQuals(typeQualsWrapper *proto.Quals) []string {
 	if typeQualsWrapper == nil {
 		var allTypes []string
@@ -113,7 +100,7 @@ func dnsTypeToDNSLibTypeEnum(recordType string) (uint16, error) {
 	case "TXT":
 		return dns.TypeTXT, nil
 	}
-	return dns.TypeANY, fmt.Errorf("Unsupported DNS record type: %g", recordType)
+	return dns.TypeANY, fmt.Errorf("Unsupported DNS record type: %s", recordType)
 }
 
 func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRow {
