@@ -2,6 +2,8 @@ package net
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"net"
@@ -34,14 +36,16 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "email_addresses", Type: proto.ColumnType_JSON, Description: "Email addresses for the certificate."},
 			{Name: "ip_address", Type: proto.ColumnType_IPADDR, Transform: transform.FromField("IPAddress"), Description: "IP address associated with the domain."},
 			{Name: "ip_addresses", Type: proto.ColumnType_JSON, Transform: transform.FromField("IPAddresses"), Description: "Array of IP addresses associated with the domain."},
-			{Name: "is_ca", Type: proto.ColumnType_BOOL, Transform: transform.FromField("IsCA"), Description: "True if the certificate represents a certificate authority."},
+			{Name: "is_ca", Type: proto.ColumnType_BOOL, Transform: transform.FromField("IsCertificateAuthority"), Description: "True if the certificate represents a certificate authority."},
 			{Name: "issuer", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
+			{Name: "issuer_name", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
 			{Name: "issuing_certificate_url", Type: proto.ColumnType_JSON, Transform: transform.FromField("IssuingCertificateURL"), Description: "List of URLs of the issuing certificates."},
 			{Name: "locality", Type: proto.ColumnType_STRING, Description: "Locality of the certificate."},
 			{Name: "not_before", Type: proto.ColumnType_DATETIME, Description: "Time when the certificate is valid from. Also see not_after."},
 			{Name: "organization", Type: proto.ColumnType_STRING, Description: "Organization of the certificate."},
 			{Name: "ou", Type: proto.ColumnType_JSON, Transform: transform.FromField("OU"), Description: "Organizational Unit of the certificate."},
 			{Name: "public_key_algorithm", Type: proto.ColumnType_STRING, Description: "Public key algorithm used by the certificate."},
+			{Name: "public_key_length", Type: proto.ColumnType_INT, Description: ""},
 			{Name: "serial_number", Type: proto.ColumnType_STRING, Description: "Serial number of the certificate."},
 			{Name: "signature_algorithm", Type: proto.ColumnType_STRING, Description: "Signature algorithm of the certificate."},
 			{Name: "state", Type: proto.ColumnType_STRING, Description: "State of the certificate."},
@@ -66,12 +70,14 @@ type tableNetCertificateRow struct {
 	IPAddresses            []net.IP                 `json:"ip_addresses,omitempty"`
 	IsCertificateAuthority bool                     `json:"is_certificate_authority,omitempty"`
 	Issuer                 string                   `json:"issuer,omitempty"`
+	IssuerName             string                   `json:"issuer_name,omitempty"`
 	IssuingCertificateURL  []string                 `json:"issuing_certificate_url,omitempty"`
 	Locality               string                   `json:"locality,omitempty"`
 	NotBefore              time.Time                `json:"not_before,omitempty"`
 	Organization           string                   `json:"organization,omitempty"`
 	OU                     []string                 `json:"ou,omitempty"`
 	PublicKeyAlgorithm     string                   `json:"public_key_algorithm,omitempty"`
+	PublicKeyLength        int                      `json:"public_key_length,omitempty"`
 	SignatureAlgorithm     string                   `json:"signature_algorithm,omitempty"`
 	SerialNumber           string                   `json:"serial_number,omitempty"`
 	State                  string                   `json:"state,omitempty"`
@@ -147,6 +153,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		c.EmailAddresses = i.EmailAddresses
 		c.IPAddresses = i.IPAddresses
 		c.IsCertificateAuthority = i.IsCA
+		c.IssuerName = i.Issuer.CommonName
 		c.Issuer = i.Issuer.String()
 		c.IssuingCertificateURL = i.IssuingCertificateURL
 		c.NotAfter = i.NotAfter
@@ -157,6 +164,16 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		c.SerialNumber = fmt.Sprintf("%032x", i.SerialNumber)
 		c.SignatureAlgorithm = i.SignatureAlgorithm.String()
 		c.Subject = i.Subject.String()
+
+		var bitLen int
+		switch publicKey := i.PublicKey.(type) {
+		case *rsa.PublicKey:
+			bitLen = publicKey.N.BitLen()
+		case *ecdsa.PublicKey:
+			bitLen = publicKey.Curve.Params().BitSize
+		default:
+		}
+		c.PublicKeyLength = bitLen
 
 		certRows = append(certRows, c)
 	}
