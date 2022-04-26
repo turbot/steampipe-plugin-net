@@ -3,7 +3,9 @@ package net
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 
@@ -34,7 +36,6 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
 			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
 			{Name: "serial", Type: proto.ColumnType_INT, Description: "Serial number of the record, such as for SOA records."},
-			{Name: "mbox", Type: proto.ColumnType_STRING, Description: "Specifies the hostmaster email address."},
 			{Name: "min_ttl", Type: proto.ColumnType_INT, Transform: transform.FromField("MinTTL"), Description: "Specifies the hostmaster email address."},
 			{Name: "refresh", Type: proto.ColumnType_INT, Description: "Specifies the SOA refresh interval. The value configures how often a name server should check it's primary server to see if there has been any updates to the zone which it does by comparing Serial numbers."},
 			{Name: "retry", Type: proto.ColumnType_INT, Description: "Specifies SOA retry value. The value indicates how long a name server should wait to retry an attempt to get fresh zone data from the primary name server if the first attempt should fail."},
@@ -53,7 +54,6 @@ type tableDNSRecordRow struct {
 	Priority  uint16
 	Value     string
 	Serial    uint32
-	Mbox      string
 	MinTTL    uint32
 	Refresh   uint32
 	Retry     uint32
@@ -176,7 +176,6 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 			Target:  typedRecord.Ns,
 			TTL:     typedRecord.Hdr.Ttl,
 			Serial:  typedRecord.Serial,
-			Mbox:    typedRecord.Mbox,
 			MinTTL:  typedRecord.Minttl,
 			Refresh: typedRecord.Refresh,
 			Retry:   typedRecord.Retry,
@@ -223,21 +222,23 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	c.SingleInflight = true
 	// Use our configuration for the timeout
 	c.Timeout = GetConfigTimeout(ctx, d)
+	c.DialTimeout = 10 * time.Second
+	c.ReadTimeout = 10 * time.Second
 
 	var dnsServer string
 	if d.KeyColumnQuals["dns_server"] != nil {
 		dnsServer = d.KeyColumnQualString("dns_server")
 		if !strings.HasSuffix(dnsServer, ":53") {
-			dnsServer = fmt.Sprintf("%s:53", dnsServer)
+			dnsServer = net.JoinHostPort(dnsServer, "53")
 		}
 	} else {
 		dnsServer = GetConfigDNSServerAndPort(ctx, d)
 	}
 
 	logger.Trace("tableDNSRecordList", "Cols", queryCols)
-	logger.Info("tableDNSRecordList", "Domain", domain)
+	logger.Trace("tableDNSRecordList", "Domain", domain)
 	logger.Trace("tableDNSRecordList", "Types", types)
-	logger.Info("tableDNSRecordList", "DNS Server", dnsServer)
+	logger.Trace("tableDNSRecordList", "DNS Server", dnsServer)
 
 	for _, dnsType := range types {
 		dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
@@ -249,7 +250,8 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 		m := new(dns.Msg)
 		m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
 		m.RecursionDesired = true
-		r, _, err := c.Exchange(m, dnsServer)
+		co, err := c.Dial(dnsServer)
+		r, _, err := c.ExchangeWithConn(m, co)
 		if err != nil {
 			return nil, err
 		}
