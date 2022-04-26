@@ -4,7 +4,7 @@ connection "net" {
   # Timeout in milliseconds for connection attempts.
   # timeout = 2000
 
-  # DNS server and port used for queries. Defaults to using the Cloudflare
+  # DNS server and port used for queries. Defaults to using the Google
   # global public server.
-  # dns_server = "1.1.1.1:53"
+  # dns_server = "8.8.8.8:53"
 }
