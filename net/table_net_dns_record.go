@@ -3,7 +3,9 @@ package net
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 
@@ -207,13 +209,15 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	c.SingleInflight = true
 	// Use our configuration for the timeout
 	c.Timeout = GetConfigTimeout(ctx, d)
+	c.DialTimeout = 10 * time.Second
+	c.ReadTimeout = 10 * time.Second
 
 	var dnsServer string
 	if d.KeyColumnQuals["dns_server"] != nil {
 		dnsServer = d.KeyColumnQualString("dns_server")
 		// Append port if not specified
 		if !strings.HasSuffix(dnsServer, ":53") {
-			dnsServer = fmt.Sprintf("%s:53", dnsServer)
+			dnsServer = net.JoinHostPort(dnsServer, "53")
 		}
 	} else {
 		dnsServer = GetConfigDNSServerAndPort(ctx, d)
@@ -234,7 +238,8 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 		m := new(dns.Msg)
 		m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
 		m.RecursionDesired = true
-		r, _, err := c.Exchange(m, dnsServer)
+		co, err := c.Dial(dnsServer)
+		r, _, err := c.ExchangeWithConn(m, co)
 		if err != nil {
 			return nil, err
 		}
