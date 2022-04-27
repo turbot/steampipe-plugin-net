@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/miekg/dns"
 
@@ -209,8 +208,6 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	c.SingleInflight = true
 	// Use our configuration for the timeout
 	c.Timeout = GetConfigTimeout(ctx, d)
-	c.DialTimeout = 10 * time.Second
-	c.ReadTimeout = 10 * time.Second
 
 	var dnsServer string
 	if d.KeyColumnQuals["dns_server"] != nil {
