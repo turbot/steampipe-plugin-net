@@ -3,6 +3,7 @@
 _Enhancements_
 
 - Added columns `dns_server`, `expire`, `minimum`, `refresh`, `retry`, `serial` to `net_dns_record` table. ([#28](https://github.com/turbot/steampipe-plugin-net/pull/28))
+- Updated  `net_dns_record` table to use Google's global public DNS instead of Cloudflare's for faster results. ([#28](https://github.com/turbot/steampipe-plugin-net/pull/28))
 - Recompiled plugin with miekg/dns v1.1.47. ([#28](https://github.com/turbot/steampipe-plugin-net/pull/28))
 
 _Bug fixes_
