@@ -4,9 +4,14 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/genkiroid/cert"
@@ -29,6 +34,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name the certificate represents."},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_DATETIME, Description: "Time when the certificate expires. Also see not_before."},
+			{Name: "is_revoked", Type: proto.ColumnType_BOOL, Description: "Indicates whether the certificate was revoked, or not."},
 			// Other columns
 			{Name: "chain", Type: proto.ColumnType_JSON, Description: "Certificate chain."},
 			{Name: "country", Type: proto.ColumnType_STRING, Description: "Country for the certificate."},
@@ -50,6 +56,10 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "signature_algorithm", Type: proto.ColumnType_STRING, Description: "Signature algorithm of the certificate."},
 			{Name: "state", Type: proto.ColumnType_STRING, Description: "State of the certificate."},
 			{Name: "subject", Type: proto.ColumnType_STRING, Description: "Subject of the certificate."},
+			{Name: "crl_distribution_points", Type: proto.ColumnType_JSON, Transform: transform.FromField("CRLDistributionPoints"), Description: "A CRL distribution point (CDP) is a location on an LDAP directory server or Web server where a CA publishes CRLs."},
+			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "The Online Certificate Status Protocol (OCSP) is a protocol for determining the status of a digital certificate without requiring Certificate Revocation Lists (CRLs. The revocation check is by an online protocol is timely and does not require fetching large lists of revoked certificate on the client side. This test suite can be used to test OCSP Responder implementations."},
+			{Name: "protocol", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("Protocol"), Description: "The TLS version used by the connection."},
+			{Name: "cipher_suite", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("CipherSuite"), Description: "The cipher suite negotiated for the connection."},
 		},
 	}
 }
@@ -61,6 +71,7 @@ type tableNetCertificateRow struct {
 	Domain     string    `json:"domain,omitempty"`
 	CommonName string    `json:"common_name,omitempty"`
 	NotAfter   time.Time `json:"not_after,omitempty"`
+	IsRevoked  bool      `json:"is_revoked,omitempty"`
 	// Other
 	Chain                  []tableNetCertificateRow `json:"chain,omitempty"`
 	Country                string                   `json:"country,omitempty"`
@@ -82,6 +93,8 @@ type tableNetCertificateRow struct {
 	SerialNumber           string                   `json:"serial_number,omitempty"`
 	State                  string                   `json:"state,omitempty"`
 	Subject                string                   `json:"subject,omitempty"`
+	CRLDistributionPoints  []string                 `json:"crl_distribution_points,omitempty"`
+	OCSPServer             []string                 `json:"ocsp_server,omitempty"`
 }
 
 func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
@@ -164,6 +177,21 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		c.SerialNumber = fmt.Sprintf("%032x", i.SerialNumber)
 		c.SignatureAlgorithm = i.SignatureAlgorithm.String()
 		c.Subject = i.Subject.String()
+		c.CRLDistributionPoints = i.CRLDistributionPoints
+		c.OCSPServer = i.OCSPServer
+
+		isRevoked, err := isRevokedCertificate(ctx, i.CRLDistributionPoints, c.SerialNumber)
+		if err != nil {
+			return nil, err
+		}
+		c.IsRevoked = *isRevoked
+
+		// validDomain := true
+		// verifyErr := i.VerifyHostname(dn)
+		// if verifyErr != nil {
+		// 	validDomain = false
+		// }
+		// panic(validDomain)
 
 		var bitLen int
 		switch publicKey := i.PublicKey.(type) {
@@ -195,4 +223,80 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	d.StreamListItem(ctx, item)
 
 	return nil, nil
+}
+
+func getProtocolDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+	plugin.Logger(ctx).Trace("getProtocolDetails")
+
+	data := h.Item.(tableNetCertificateRow)
+
+	cfg := tls.Config{}
+	addr := net.JoinHostPort(data.Domain, "443")
+	conn, err := tls.Dial("tcp", addr, &cfg)
+	if err != nil {
+		return nil, errors.New("TLS connection failed: " + err.Error())
+	}
+
+	var tlsVersion string
+	switch conn.ConnectionState().Version {
+	case 769:
+		tlsVersion = "TLS v1.0"
+	case 770:
+		tlsVersion = "TLS v1.1"
+	case 771:
+		tlsVersion = "TLS v1.2"
+	case 772:
+		tlsVersion = "TLS v1.3"
+	}
+
+	return map[string]string{
+		"Protocol":    tlsVersion,
+		"CipherSuite": tls.CipherSuiteName(conn.ConnectionState().CipherSuite),
+	}, nil
+}
+
+// Checks if the certificate was revoked
+func isRevokedCertificate(ctx context.Context, crlDistributionPoints []string, serialNumber string) (*bool, error) {
+	plugin.Logger(ctx).Trace("isRevokedCertificate")
+
+	isRevoked := false
+
+	for _, crlDistributionPoint := range crlDistributionPoints {
+		crlInfo, err := fetchCRL(crlDistributionPoint)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check CRL is not outdated
+		if crlInfo.TBSCertList.NextUpdate.Before(time.Now()) {
+			return nil, errors.New("CRL is outdated")
+		}
+
+		// Check if the certificate is listed in Certificate Revocation List (CRL)
+		for _, i := range crlInfo.TBSCertList.RevokedCertificates {
+			if fmt.Sprintf("%032x", i.SerialNumber) == serialNumber {
+				isRevoked = true
+				return &isRevoked, nil
+			}
+		}
+	}
+	return &isRevoked, nil
+}
+
+// Fetch CRL list
+func fetchCRL(url string) (*pkix.CertificateList, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode >= 300 {
+		return nil, errors.New("failed to retrieve CRL")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body.Close()
+
+	return x509.ParseCRL(body)
 }
