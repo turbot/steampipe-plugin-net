@@ -3,6 +3,8 @@ package net
 import (
 	"context"
 	"fmt"
+	"net"
+	"strings"
 
 	"github.com/miekg/dns"
 
@@ -16,42 +18,45 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 		Name:        "net_dns_record",
 		Description: "DNS records associated with a given domain.",
 		List: &plugin.ListConfig{
-			Hydrate:    tableDNSRecordList,
-			KeyColumns: plugin.SingleColumn("domain"),
+			Hydrate: tableDNSRecordList,
+			KeyColumns: plugin.KeyColumnSlice{
+				{Name: "domain", Require: plugin.Required, Operators: []string{"="}},
+				{Name: "type", Require: plugin.Optional, Operators: []string{"="}},
+				{Name: "dns_server", Require: plugin.Optional, Operators: []string{"="}, CacheMatch: "exact"},
+			},
 		},
 		Columns: []*plugin.Column{
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name for the record."},
-			{Name: "type", Type: proto.ColumnType_STRING, Description: "Type of the DNS record: A, CNAME, MX, etc"},
+			{Name: "type", Type: proto.ColumnType_STRING, Description: "Type of the DNS record: A, CNAME, MX, etc."},
+			{Name: "dns_server", Type: proto.ColumnType_STRING, Description: "DNS server name and port used for queries.", Transform: transform.FromQual("dns_server")},
 			{Name: "ip", Transform: transform.FromField("IP"), Type: proto.ColumnType_IPADDR, Description: "IP address for the record, such as for A records."},
 			{Name: "target", Type: proto.ColumnType_STRING, Description: "Target of the record, such as the target address for CNAME records."},
 			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
 			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
 			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
+			{Name: "serial", Type: proto.ColumnType_INT, Description: "Specifies the SOA serial number."},
+			{Name: "minimum", Type: proto.ColumnType_INT, Description: "Specifies the SOA minimum value in seconds, which indicates how long negative answers are stored in the DNS cache."},
+			{Name: "refresh", Type: proto.ColumnType_INT, Description: "Specifies the SOA refresh interval in seconds, which configures how often a name server should check its primary server to see if there has been any updates to the zone which it does by comparing Serial numbers."},
+			{Name: "retry", Type: proto.ColumnType_INT, Description: "Specifies SOA retry value in seconds, which indicates how long a name server should wait to retry an attempt to get fresh zone data from the primary name server if the first attempt should fail."},
+			{Name: "expire", Type: proto.ColumnType_INT, Description: "Specifies SOA expire value in seconds, which indicates when the zone data is no longer authoritative."},
 		},
 	}
 }
 
 type tableDNSRecordRow struct {
-	Domain   string
-	Type     string
-	IP       string
-	Target   string
-	TTL      uint32
-	Priority uint16
-	Value    string
-}
-
-func getDomainQuals(domainQualsWrapper *proto.Quals) []string {
-	var domains []string
-	domainQuals := domainQualsWrapper.Quals[0].Value
-	if qualList := domainQuals.GetListValue(); qualList != nil {
-		for _, q := range qualList.Values {
-			domains = append(domains, q.GetStringValue())
-		}
-	} else {
-		domains = append(domains, domainQuals.GetStringValue())
-	}
-	return domains
+	Domain    string
+	Type      string
+	DNSServer string
+	IP        string
+	Target    string
+	TTL       uint32
+	Priority  uint16
+	Value     string
+	Serial    uint32
+	Minimum   uint32
+	Refresh   uint32
+	Retry     uint32
+	Expire    uint32
 }
 
 func getTypeQuals(typeQualsWrapper *proto.Quals) []string {
@@ -152,10 +157,15 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 		})
 	case *dns.SOA:
 		records = append(records, tableDNSRecordRow{
-			Domain: domain,
-			Type:   dnsType,
-			Target: typedRecord.Ns,
-			TTL:    typedRecord.Hdr.Ttl,
+			Domain:  domain,
+			Type:    dnsType,
+			Target:  typedRecord.Ns,
+			TTL:     typedRecord.Hdr.Ttl,
+			Serial:  typedRecord.Serial,
+			Minimum: typedRecord.Minttl,
+			Refresh: typedRecord.Refresh,
+			Retry:   typedRecord.Retry,
+			Expire:  typedRecord.Expire,
 		})
 	case *dns.SRV:
 		records = append(records, tableDNSRecordRow{
@@ -182,22 +192,16 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	logger := plugin.Logger(ctx)
 
 	queryCols := d.QueryContext.Columns
-	domainQualsWrapper := d.QueryContext.UnsafeQuals["domain"]
 
 	// You must pass 1 or more domain quals to the query
-	if domainQualsWrapper == nil {
+	if d.KeyColumnQuals["domain"] == nil {
 		logger.Trace("tableDNSRecordList", "No domain quals provided")
 		return nil, nil
 	}
-
-	domains := getDomainQuals(domainQualsWrapper)
+	domain := d.KeyColumnQualString("domain")
 
 	typeQualsWrapper := d.QueryContext.UnsafeQuals["type"]
 	types := getTypeQuals(typeQualsWrapper)
-
-	logger.Trace("tableDNSRecordList", "Cols", queryCols)
-	logger.Trace("tableDNSRecordList", "Domains", domains)
-	logger.Trace("tableDNSRecordList", "Types", types)
 
 	c := new(dns.Client)
 	// Ensure a single request of the same question, type and class at a time.
@@ -205,38 +209,50 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 	// Use our configuration for the timeout
 	c.Timeout = GetConfigTimeout(ctx, d)
 
-	dnsServer := GetConfigDNSServerAndPort(ctx, d)
-	logger.Trace("tableDNSRecordList", "DNS Server", dnsServer)
+	var dnsServer string
+	if d.KeyColumnQuals["dns_server"] != nil {
+		dnsServer = d.KeyColumnQualString("dns_server")
+		// Append port if not specified
+		if !strings.HasSuffix(dnsServer, ":53") {
+			dnsServer = net.JoinHostPort(dnsServer, "53")
+		}
+	} else {
+		dnsServer = GetConfigDNSServerAndPort(ctx, d)
+	}
 
-	for _, domain := range domains {
-		for _, dnsType := range types {
-			dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
-			if err != nil {
-				logger.Error(err.Error())
-				continue
-			}
+	logger.Trace("tableDNSRecordList", "Cols", queryCols)
+	logger.Trace("tableDNSRecordList", "Domain", domain)
+	logger.Trace("tableDNSRecordList", "Types", types)
+	logger.Trace("tableDNSRecordList", "DNS server", dnsServer)
 
-			m := new(dns.Msg)
-			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
-			m.RecursionDesired = true
-			r, _, err := c.Exchange(m, dnsServer)
-			if err != nil {
-				return nil, err
-			}
-			if r.Rcode != dns.RcodeSuccess {
-				return nil, err
-			}
+	for _, dnsType := range types {
+		dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
+		if err != nil {
+			logger.Error(err.Error())
+			continue
+		}
 
-			logger.Trace("tableDNSRecordList", "Question", r.Question)
-			logger.Trace("tableDNSRecordList", "Answer", r.Answer)
-			logger.Trace("tableDNSRecordList", "Extra", r.Extra)
-			logger.Trace("tableDNSRecordList", "NS", r.Ns)
+		m := new(dns.Msg)
+		m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
+		m.RecursionDesired = true
+		co, err := c.Dial(dnsServer)
+		r, _, err := c.ExchangeWithConn(m, co)
+		if err != nil {
+			return nil, err
+		}
+		if r.Rcode != dns.RcodeSuccess {
+			return nil, err
+		}
 
-			for _, answer := range r.Answer {
-				for _, record := range getRecords(domain, dnsType, answer) {
-					logger.Trace("tableDNSRecordList", "Record", record)
-					d.StreamListItem(ctx, record)
-				}
+		logger.Trace("tableDNSRecordList", "Question", r.Question)
+		logger.Trace("tableDNSRecordList", "Answer", r.Answer)
+		logger.Trace("tableDNSRecordList", "Extra", r.Extra)
+		logger.Trace("tableDNSRecordList", "NS", r.Ns)
+
+		for _, answer := range r.Answer {
+			for _, record := range getRecords(domain, dnsType, answer) {
+				logger.Trace("tableDNSRecordList", "Record", record)
+				d.StreamListItem(ctx, record)
 			}
 		}
 	}

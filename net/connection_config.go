@@ -46,8 +46,8 @@ func GetConfigTimeout(ctx context.Context, d *plugin.QueryData) time.Duration {
 }
 
 func GetConfigDNSServerAndPort(ctx context.Context, d *plugin.QueryData) string {
-	// default to Cloudflare
-	s := "1.1.1.1:53"
+	// default to Google
+	s := "8.8.8.8:53"
 	config := GetConfig(d.Connection)
 	if config.DNSServer != nil {
 		s = *config.DNSServer
