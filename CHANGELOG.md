@@ -1,3 +1,14 @@
+## v0.3.0 [2022-04-28]
+
+_Enhancements_
+
+- Added columns `dns_server`, `expire`, `minimum`, `refresh`, `retry`, `serial` to `net_dns_record` table. ([#28](https://github.com/turbot/steampipe-plugin-net/pull/28))
+- Recompiled plugin with miekg/dns v1.1.47. ([#28](https://github.com/turbot/steampipe-plugin-net/pull/28))
+
+_Bug fixes_
+
+- Fixed `net_dns_record` table not returning correct results for consecutive queries when using the `type` list key column. ([#28](https://github.com/turbot/steampipe-plugin-net/pull/28))
+
 ## v0.2.0 [2022-04-27]
 
 _Enhancements_
