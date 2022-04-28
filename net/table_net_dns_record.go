@@ -34,8 +34,8 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
 			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
 			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
-			{Name: "serial", Type: proto.ColumnType_INT, Description: "Serial number of the record, such as for SOA records."},
-			{Name: "min_ttl", Type: proto.ColumnType_INT, Transform: transform.FromField("MinTTL"), Description: "Time To Live in seconds for negative answers in DNS cache."},
+			{Name: "serial", Type: proto.ColumnType_INT, Description: "Specifies the SOA serial number."},
+			{Name: "minimum", Type: proto.ColumnType_INT, Description: "Specifies the SOA minimum value in seconds, which indicates how long negative answers are stored in the DNS cache."},
 			{Name: "refresh", Type: proto.ColumnType_INT, Description: "Specifies the SOA refresh interval in seconds, which configures how often a name server should check its primary server to see if there has been any updates to the zone which it does by comparing Serial numbers."},
 			{Name: "retry", Type: proto.ColumnType_INT, Description: "Specifies SOA retry value in seconds, which indicates how long a name server should wait to retry an attempt to get fresh zone data from the primary name server if the first attempt should fail."},
 			{Name: "expire", Type: proto.ColumnType_INT, Description: "Specifies SOA expire value in seconds, which indicates when the zone data is no longer authoritative."},
@@ -53,7 +53,7 @@ type tableDNSRecordRow struct {
 	Priority  uint16
 	Value     string
 	Serial    uint32
-	MinTTL    uint32
+	Minimum   uint32
 	Refresh   uint32
 	Retry     uint32
 	Expire    uint32
@@ -162,7 +162,7 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 			Target:  typedRecord.Ns,
 			TTL:     typedRecord.Hdr.Ttl,
 			Serial:  typedRecord.Serial,
-			MinTTL:  typedRecord.Minttl,
+			Minimum: typedRecord.Minttl,
 			Refresh: typedRecord.Refresh,
 			Retry:   typedRecord.Retry,
 			Expire:  typedRecord.Expire,
