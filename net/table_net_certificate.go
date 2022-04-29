@@ -47,7 +47,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "issuer_name", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
 			{Name: "issuing_certificate_url", Type: proto.ColumnType_JSON, Transform: transform.FromField("IssuingCertificateURL"), Description: "List of URLs of the issuing certificates."},
 			{Name: "locality", Type: proto.ColumnType_STRING, Description: "Locality of the certificate."},
-			{Name: "not_before", Type: proto.ColumnType_DATETIME, Description: "Time when the certificate is valid from. Also see not_after."},
+			{Name: "not_before", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate is valid from. Also see not_after."},
 			{Name: "organization", Type: proto.ColumnType_STRING, Description: "Organization of the certificate."},
 			{Name: "ou", Type: proto.ColumnType_JSON, Transform: transform.FromField("OU"), Description: "Organizational Unit of the certificate."},
 			{Name: "public_key_algorithm", Type: proto.ColumnType_STRING, Description: "Public key algorithm used by the certificate."},
