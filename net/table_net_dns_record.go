@@ -188,7 +188,7 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 	return records
 }
 
-func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.HydrateData) (interface{}, error) {
+func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
 	logger := plugin.Logger(ctx)
 
 	queryCols := d.QueryContext.Columns
@@ -232,24 +232,38 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 			continue
 		}
 
-		m := new(dns.Msg)
-		m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
-		m.RecursionDesired = true
-		co, err := c.Dial(dnsServer)
-		r, _, err := c.ExchangeWithConn(m, co)
+		listRecordSet := func(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+			m := new(dns.Msg)
+			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
+			m.RecursionDesired = true
+			co, err := c.Dial(dnsServer)
+			r, _, err := c.ExchangeWithConn(m, co)
+			if err != nil {
+				return nil, err
+			}
+			if r.Rcode != dns.RcodeSuccess {
+				return nil, err
+			}
+
+			logger.Trace("tableDNSRecordList", "Question", r.Question)
+			logger.Trace("tableDNSRecordList", "Answer", r.Answer)
+			logger.Trace("tableDNSRecordList", "Extra", r.Extra)
+			logger.Trace("tableDNSRecordList", "NS", r.Ns)
+
+			return r.Answer, nil
+		}
+
+		listRecordSetResponse, err := plugin.RetryHydrate(ctx, d, h, listRecordSet, &plugin.RetryConfig{ShouldRetryError: shouldRetryError})
 		if err != nil {
 			return nil, err
 		}
-		if r.Rcode != dns.RcodeSuccess {
-			return nil, err
+
+		var listResponse []dns.RR
+		if listRecordSetResponse != nil {
+			listResponse = listRecordSetResponse.([]dns.RR)
 		}
 
-		logger.Trace("tableDNSRecordList", "Question", r.Question)
-		logger.Trace("tableDNSRecordList", "Answer", r.Answer)
-		logger.Trace("tableDNSRecordList", "Extra", r.Extra)
-		logger.Trace("tableDNSRecordList", "NS", r.Ns)
-
-		for _, answer := range r.Answer {
+		for _, answer := range listResponse {
 			for _, record := range getRecords(domain, dnsType, answer) {
 				logger.Trace("tableDNSRecordList", "Record", record)
 				d.StreamListItem(ctx, record)
