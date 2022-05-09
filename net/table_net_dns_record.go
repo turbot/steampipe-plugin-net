@@ -32,6 +32,7 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			{Name: "ip", Transform: transform.FromField("IP"), Type: proto.ColumnType_IPADDR, Description: "IP address for the record, such as for A records."},
 			{Name: "target", Type: proto.ColumnType_STRING, Description: "Target of the record, such as the target address for CNAME records."},
 			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
+			{Name: "tag", Type: proto.ColumnType_STRING, Description: "An ASCII string that represents the identifier of the property represented by the record."},
 			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
 			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
 			{Name: "serial", Type: proto.ColumnType_INT, Description: "Specifies the SOA serial number."},
@@ -51,6 +52,7 @@ type tableDNSRecordRow struct {
 	Target    string
 	TTL       uint32
 	Priority  uint16
+	Tag       string
 	Value     string
 	Serial    uint32
 	Minimum   uint32
@@ -62,7 +64,7 @@ type tableDNSRecordRow struct {
 func getTypeQuals(typeQualsWrapper *proto.Quals) []string {
 	if typeQualsWrapper == nil {
 		var allTypes []string
-		return append(allTypes, "A", "AAAA", "CERT", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT")
+		return append(allTypes, "A", "AAAA", "CERT", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT", "CAA")
 	}
 	var types []string
 	typeQuals := typeQualsWrapper.Quals[0].Value
@@ -98,6 +100,8 @@ func dnsTypeToDNSLibTypeEnum(recordType string) (uint16, error) {
 		return dns.TypeSRV, nil
 	case "TXT":
 		return dns.TypeTXT, nil
+	case "CAA":
+		return dns.TypeCAA, nil
 	}
 	return dns.TypeANY, fmt.Errorf("Unsupported DNS record type: %s", recordType)
 }
@@ -184,6 +188,14 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 				Value:  txt,
 			})
 		}
+	case *dns.CAA:
+		records = append(records, tableDNSRecordRow{
+			Domain: domain,
+			Type:   dnsType,
+			TTL:    typedRecord.Hdr.Ttl,
+			Tag:    typedRecord.Tag,
+			Value:  typedRecord.Value,
+		})
 	}
 	return records
 }
