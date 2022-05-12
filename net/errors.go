@@ -1,5 +1,12 @@
 package net
 
+import "strings"
+
 func shouldRetryError(err error) bool {
-	return err != nil
+	if err != nil {
+		if strings.Contains(err.Error(), "i/o timeout") {
+			return true
+		}
+	}
+	return false
 }
