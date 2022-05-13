@@ -33,7 +33,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			// Top columns
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name the certificate represents."},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
-			{Name: "not_after", Type: proto.ColumnType_DATETIME, Description: "Time when the certificate expires. Also see not_before."},
+			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
 			{Name: "is_revoked", Type: proto.ColumnType_BOOL, Description: "Indicates whether the certificate was revoked, or not."},
 			// Other columns
 			{Name: "chain", Type: proto.ColumnType_JSON, Description: "Certificate chain."},

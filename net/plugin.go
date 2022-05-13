@@ -20,7 +20,6 @@ func Plugin(ctx context.Context) *plugin.Plugin {
 			"net_connection":  tableNetConnection(ctx),
 			"net_dns_record":  tableNetDNSRecord(ctx),
 			"net_dns_reverse": tableNetDNSReverse(ctx),
-			"net_web_request": tableNetWebRequest(),
 		},
 	}
 	return p
