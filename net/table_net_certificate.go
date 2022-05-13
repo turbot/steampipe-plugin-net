@@ -166,7 +166,13 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		c.EmailAddresses = i.EmailAddresses
 		c.IPAddresses = i.IPAddresses
 		c.IsCertificateAuthority = i.IsCA
-		c.IssuerName = i.Issuer.CommonName
+		if i.Issuer.CommonName != "" {
+			c.IssuerName = i.Issuer.CommonName
+		} else {
+			if len(i.Issuer.Organization) > 0 && len(i.Issuer.OrganizationalUnit) > 0 {
+				c.IssuerName = fmt.Sprintf("%s / %s", i.Issuer.Organization[0], i.Issuer.OrganizationalUnit[0])
+			}
+		}
 		c.Issuer = i.Issuer.String()
 		c.IssuingCertificateURL = i.IssuingCertificateURL
 		c.NotAfter = i.NotAfter
@@ -185,13 +191,6 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 			return nil, err
 		}
 		c.IsRevoked = *isRevoked
-
-		// validDomain := true
-		// verifyErr := i.VerifyHostname(dn)
-		// if verifyErr != nil {
-		// 	validDomain = false
-		// }
-		// panic(validDomain)
 
 		var bitLen int
 		switch publicKey := i.PublicKey.(type) {
