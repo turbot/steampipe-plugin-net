@@ -1,6 +1,7 @@
 package net
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -9,17 +10,24 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/genkiroid/cert"
+	"golang.org/x/crypto/ocsp"
 
 	"github.com/turbot/steampipe-plugin-sdk/v3/grpc/proto"
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin"
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin/transform"
 )
+
+type OCSP struct {
+	*ocsp.Response
+	Status string
+}
 
 func tableNetCertificate(ctx context.Context) *plugin.Table {
 	return &plugin.Table{
@@ -60,6 +68,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "The Online Certificate Status Protocol (OCSP) is a protocol for determining the status of a digital certificate without requiring Certificate Revocation Lists (CRLs. The revocation check is by an online protocol is timely and does not require fetching large lists of revoked certificate on the client side. This test suite can be used to test OCSP Responder implementations."},
 			{Name: "protocol", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("Protocol"), Description: "The TLS version used by the connection."},
 			{Name: "cipher_suite", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("CipherSuite"), Description: "The cipher suite negotiated for the connection."},
+			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getOCSPDetails, Transform: transform.FromValue(), Description: "OCSP Details about the certificate."},
 		},
 	}
 }
@@ -95,6 +104,8 @@ type tableNetCertificateRow struct {
 	Subject                string                   `json:"subject,omitempty"`
 	CRLDistributionPoints  []string                 `json:"crl_distribution_points,omitempty"`
 	OCSPServer             []string                 `json:"ocsp_server,omitempty"`
+
+	rawCert *x509.Certificate `json:"-"`
 }
 
 func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
@@ -201,6 +212,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		default:
 		}
 		c.PublicKeyLength = bitLen
+		c.rawCert = i
 
 		certRows = append(certRows, c)
 	}
@@ -252,6 +264,62 @@ func getProtocolDetails(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 		"Protocol":    tlsVersion,
 		"CipherSuite": tls.CipherSuiteName(conn.ConnectionState().CipherSuite),
 	}, nil
+}
+
+func getOCSPDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+	o := OCSP{}
+	plugin.Logger(ctx).Trace("getOCSPDetails")
+
+	data := h.Item.(tableNetCertificateRow)
+
+	if len(data.Chain) == 0 {
+		plugin.Logger(ctx).Error("************************** no chain")
+		return nil, nil
+	}
+
+	cert := data.rawCert
+	// the first element of the chain is the certificate of the issuer
+	// TODO: if it's absent, we should download from cert.IssuingCertificateURL
+	issuerCert := data.Chain[0].rawCert
+
+	request_url := cert.OCSPServer[0]
+	plugin.Logger(ctx).Trace("************************** ocsp server", request_url)
+
+	ocspBytes, err := ocsp.CreateRequest(cert, issuerCert, &ocsp.RequestOptions{})
+	if err != nil {
+		plugin.Logger(ctx).Error("************************** bad ocsp certs", err)
+		return nil, err
+	}
+	plugin.Logger(ctx).Error("************************** request bytes", ocspBytes)
+	req, err := http.NewRequest("POST", request_url, bytes.NewReader(ocspBytes))
+
+	req.Header.Set("Content-Type", "application/ocsp-request")
+	req.Header.Set("Connection", "close")
+	req.Header.Set("User-Agent", fmt.Sprintf("Turbot Steampipe (+https://steampipe.io)"))
+
+	resp, err := http.DefaultClient.Do(req)
+	plugin.Logger(ctx).Error("************************** response code", resp.StatusCode)
+	if err != nil {
+		plugin.Logger(ctx).Error("************************** bad ocsp response", err)
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	ocsp_resp, err := ocsp.ParseResponseForCert(body, cert, issuerCert)
+	if err != nil {
+		plugin.Logger(ctx).Error("************************** bad ocsp response", err)
+		return nil, err
+	}
+	o = OCSP{Response: ocsp_resp}
+	if ocsp_resp.Status == ocsp.Good {
+		o.Status = "Good"
+	} else if ocsp_resp.Status == ocsp.Unknown {
+		o.Status = "Unknown"
+	} else if ocsp_resp.Status == ocsp.Revoked {
+		o.Status = fmt.Sprintf("Revoked|%v|%d", ocsp_resp.RevokedAt, ocsp_resp.RevocationReason)
+	} else {
+		o.Status = "Unexpected Status!"
+	}
+	return o, nil
 }
 
 // Checks if the certificate was revoked
