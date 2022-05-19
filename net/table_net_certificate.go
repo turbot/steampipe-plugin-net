@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -58,8 +59,8 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "subject", Type: proto.ColumnType_STRING, Description: "Subject of the certificate."},
 			{Name: "crl_distribution_points", Type: proto.ColumnType_JSON, Transform: transform.FromField("CRLDistributionPoints"), Description: "A CRL distribution point (CDP) is a location on an LDAP directory server or Web server where a CA publishes CRLs."},
 			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "The Online Certificate Status Protocol (OCSP) is a protocol for determining the status of a digital certificate without requiring Certificate Revocation Lists (CRLs. The revocation check is by an online protocol is timely and does not require fetching large lists of revoked certificate on the client side. This test suite can be used to test OCSP Responder implementations."},
-			{Name: "protocol", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("Protocol"), Description: "The TLS version used by the connection."},
-			{Name: "cipher_suite", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("CipherSuite"), Description: "The cipher suite negotiated for the connection."},
+			{Name: "protocol", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Description: "The TLS version used by the connection."},
+			{Name: "cipher_suite", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Description: "The cipher suite negotiated for the connection."},
 		},
 	}
 }
@@ -229,23 +230,34 @@ func getProtocolDetails(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 
 	data := h.Item.(tableNetCertificateRow)
 
-	cfg := tls.Config{}
+	cfg := tls.Config{
+		Rand: rand.Reader,
+	}
 	addr := net.JoinHostPort(data.Domain, "443")
 	conn, err := tls.Dial("tcp", addr, &cfg)
 	if err != nil {
 		return nil, errors.New("TLS connection failed: " + err.Error())
 	}
 
+	err = conn.HandshakeContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var tlsVersion string
 	switch conn.ConnectionState().Version {
-	case 769:
+	case tls.VersionTLS10:
 		tlsVersion = "TLS v1.0"
-	case 770:
+	case tls.VersionTLS11:
 		tlsVersion = "TLS v1.1"
-	case 771:
+	case tls.VersionTLS12:
 		tlsVersion = "TLS v1.2"
-	case 772:
+	case tls.VersionTLS13:
 		tlsVersion = "TLS v1.3"
+	case tls.VersionSSL30:
+		tlsVersion = "SSL v3"
+	default:
+		tlsVersion = "unknown"
 	}
 
 	return map[string]string{
