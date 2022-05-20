@@ -26,8 +26,9 @@ import (
 )
 
 type OCSP struct {
-	*ocsp.Response
-	Status string
+	StatusString           string     `json:"status"`
+	RevokedAt              *time.Time `json:"revoked_at,omitempty"`
+	RevocationReasonString string     `json:"revocation_reason,omitempty"`
 }
 
 func tableNetCertificate(ctx context.Context) *plugin.Table {
@@ -279,59 +280,86 @@ func getProtocolDetails(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 }
 
 func getOCSPDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
-	o := OCSP{}
+	ocspData := OCSP{}
 	plugin.Logger(ctx).Trace("getOCSPDetails")
 
 	data := h.Item.(tableNetCertificateRow)
 
 	if len(data.Chain) == 0 {
-		plugin.Logger(ctx).Error("************************** no chain")
+		plugin.Logger(ctx).Trace("could not find a certificate chain")
 		return nil, nil
 	}
 
 	cert := data.rawCert
 	// the first element of the chain is the certificate of the issuer
-	// TODO: if it's absent, we should download from cert.IssuingCertificateURL
 	issuerCert := data.Chain[0].rawCert
 
-	request_url := cert.OCSPServer[0]
-	plugin.Logger(ctx).Trace("************************** ocsp server", request_url)
+	if len(cert.OCSPServer) == 0 {
+		plugin.Logger(ctx).Trace("could not find OCSP verification server")
+		return nil, nil
+	}
+	requestUrl := cert.OCSPServer[0]
 
 	ocspBytes, err := ocsp.CreateRequest(cert, issuerCert, &ocsp.RequestOptions{})
 	if err != nil {
-		plugin.Logger(ctx).Error("************************** bad ocsp certs", err)
 		return nil, err
 	}
-	plugin.Logger(ctx).Error("************************** request bytes", ocspBytes)
-	req, err := http.NewRequest("POST", request_url, bytes.NewReader(ocspBytes))
-
+	req, err := http.NewRequest("POST", requestUrl, bytes.NewReader(ocspBytes))
 	req.Header.Set("Content-Type", "application/ocsp-request")
 	req.Header.Set("Connection", "close")
 	req.Header.Set("User-Agent", fmt.Sprintf("Turbot Steampipe (+https://steampipe.io)"))
 
 	resp, err := http.DefaultClient.Do(req)
-	plugin.Logger(ctx).Error("************************** response code", resp.StatusCode)
 	if err != nil {
-		plugin.Logger(ctx).Error("************************** bad ocsp response", err)
 		return nil, err
 	}
 	body, err := io.ReadAll(resp.Body)
-	ocsp_resp, err := ocsp.ParseResponseForCert(body, cert, issuerCert)
+	ocspResponse, err := ocsp.ParseResponseForCert(body, cert, issuerCert)
 	if err != nil {
-		plugin.Logger(ctx).Error("************************** bad ocsp response", err)
 		return nil, err
 	}
-	o = OCSP{Response: ocsp_resp}
-	if ocsp_resp.Status == ocsp.Good {
-		o.Status = "Good"
-	} else if ocsp_resp.Status == ocsp.Unknown {
-		o.Status = "Unknown"
-	} else if ocsp_resp.Status == ocsp.Revoked {
-		o.Status = fmt.Sprintf("Revoked|%v|%d", ocsp_resp.RevokedAt, ocsp_resp.RevocationReason)
-	} else {
-		o.Status = "Unexpected Status!"
+
+	ocspData = OCSP{}
+	switch ocspResponse.Status {
+	case ocsp.Good:
+		ocspData.StatusString = "good"
+	case ocsp.Unknown:
+		ocspData.StatusString = "unknown"
+	case ocsp.Revoked:
+		ocspData.RevokedAt = &ocspResponse.RevokedAt
+		ocspData.RevocationReasonString = getOCSPRevocationReasonString(ocspResponse.RevocationReason)
+		ocspData.StatusString = "revoked"
+	default:
+		ocspData.StatusString = "unexpected"
 	}
-	return o, nil
+
+	return ocspData, nil
+}
+
+func getOCSPRevocationReasonString(reasonCode int) string {
+	switch reasonCode {
+	case ocsp.Unspecified:
+		return "unspecified"
+	case ocsp.KeyCompromise:
+		return "key-compromise"
+	case ocsp.CACompromise:
+		return "ca-compromise"
+	case ocsp.AffiliationChanged:
+		return "affiliation-changed"
+	case ocsp.Superseded:
+		return "superseded"
+	case ocsp.CessationOfOperation:
+		return "cessation-of-operation"
+	case ocsp.CertificateHold:
+		return "certificate-hold"
+	case ocsp.RemoveFromCRL:
+		return "remove-from-crl"
+	case ocsp.PrivilegeWithdrawn:
+		return "privilefe-withdrawn"
+	case ocsp.AACompromise:
+		return "aa-compromise"
+	}
+	return "unknown"
 }
 
 // Checks if the certificate was revoked
