@@ -279,6 +279,8 @@ func getProtocolDetails(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 	}, nil
 }
 
+// getOCSPDetails queries the ocsp_server as given in the certificate and fetches the ocsp status
+// adapted from https://github.com/crtsh/ocsp_monitor/blob/e5a2a490acb05dafb0d46f4d0f32c89b1e91a1b5/ocsp_monitor.go#L233
 func getOCSPDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
 	ocspData := OCSP{}
 	plugin.Logger(ctx).Trace("getOCSPDetails")
