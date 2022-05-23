@@ -33,7 +33,7 @@ func tableNetWebRequest() *plugin.Table {
 			{Name: "url", Transform: transform.FromField("Url"), Type: proto.ColumnType_STRING},
 			{Name: "method", Type: proto.ColumnType_STRING},
 			{Name: "request_body", Type: proto.ColumnType_STRING},
-			{Name: "request_headers", Type: proto.ColumnType_STRING},
+			{Name: "request_headers", Type: proto.ColumnType_JSON, Transform: transform.FromQual("request_headers")},
 			//{Name: "request_header_authorization", Type: proto.ColumnType_STRING},
 			//{Name: "request_header_content_type", Type: proto.ColumnType_STRING},
 			// TODO: Does it need response_?
@@ -67,7 +67,7 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 		methods = []string{"GET"}
 	}
 
-	requestHeadersString := queryCols["request_headers"].GetStringValue()
+	requestHeadersString := queryCols["request_headers"].GetJsonbValue()
 	logger.Info("listBaseRequestAttributes", "Headers String", requestHeadersString)
 
 	// TODO: How to handle headers with same key and different values? Use comma delimited?
@@ -149,11 +149,16 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 		}
 
 		req = addRequestHeaders(req, headers)
-
 		logger.Info("Request:", req)
+
+		var item tableNetWebRequestRow
 
 		// Make request
 		res, requestErr = client.Do(req)
+		if requestErr != nil {
+			logger.Error("listRequestResponses do request error", "url", url, "request method", req.Method, "error", requestErr.Error())
+			item.Error = requestErr.Error()
+		}
 
 		// Read response
 		buf := new(bytes.Buffer)
@@ -174,20 +179,13 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 		// TODO: Can we show the full redirect res chain?
 		// TODO: What cert info do we get?
 		// Generate table row item
-		item := tableNetWebRequestRow{
-			Url:            url,
-			Method:         method,
-			RequestBody:    requestBody,
-			RequestHeaders: requestHeadersString,
-			//RequestHeaderContentType:   headers["Content-Type"],
-			//RequestHeaderAuthorization: headers["Authorization"],
+		item = tableNetWebRequestRow{
+			Url:                url,
+			Method:             method,
+			RequestBody:        requestBody,
 			ResponseStatusCode: res.StatusCode,
 			ResponseHeaders:    res.Header,
 			ResponseBody:       body,
-		}
-		if requestErr != nil {
-			logger.Error("listRequestResponses do request error", "url", url, "request method", req.Method, "error", requestErr.Error())
-			item.Error = requestErr.Error()
 		}
 
 		d.StreamListItem(ctx, item)
