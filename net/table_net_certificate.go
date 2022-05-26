@@ -9,10 +9,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"time"
@@ -31,6 +33,8 @@ type OCSP struct {
 	RevocationReasonString string     `json:"revocation_reason,omitempty"`
 }
 
+//// TABLE DEFINITION
+
 func tableNetCertificate(ctx context.Context) *plugin.Table {
 	return &plugin.Table{
 		Name:        "net_certificate",
@@ -45,6 +49,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
 			{Name: "is_revoked", Type: proto.ColumnType_BOOL, Description: "Indicates whether the certificate was revoked, or not."},
+			{Name: "transparent", Type: proto.ColumnType_BOOL, Hydrate: getCertificateTransparencyLogs, Transform: transform.FromValue(), Description: "Indicates whether certificate is visible in certificate transparency logs."},
 			// Other columns
 			{Name: "chain", Type: proto.ColumnType_JSON, Description: "Certificate chain."},
 			{Name: "country", Type: proto.ColumnType_STRING, Description: "Country for the certificate."},
@@ -109,6 +114,19 @@ type tableNetCertificateRow struct {
 
 	rawCert *x509.Certificate `json:"-"`
 }
+
+type Cert struct {
+	IssuerCaID     int    `json:"issuer_ca_id"`
+	IssuerName     string `json:"issuer_name"`
+	NameValue      string `json:"name_value"`
+	ID             int64  `json:"id"`
+	EntryTimestamp string `json:"entry_timestamp"`
+	NotBefore      string `json:"not_before"`
+	NotAfter       string `json:"not_after"`
+	SerialNumber   string `json:"serial_number"`
+}
+
+//// LIST FUNCTION
 
 func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
 
@@ -408,4 +426,40 @@ func fetchCRL(url string) (*pkix.CertificateList, error) {
 	resp.Body.Close()
 
 	return x509.ParseCRL(body)
+}
+
+// Check if certificate is transparent
+func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+	data := h.Item.(tableNetCertificateRow)
+	domainName := data.CommonName
+	serialNumber := data.SerialNumber
+
+	// crt.sh is a web interface to a distributed database called the certificate transparency logs.
+	// To validate if domain certificate is transparent, check your certificate in certificate transparency logs
+	var certs []Cert
+	baseURL := "https://crt.sh/"
+	url := fmt.Sprintf("%s?q=%s&match==&output=json", baseURL, domainName)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(body, &certs)
+	if err != nil {
+		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "unmarshal_error", err)
+		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
+	}
+
+	// If certificate record found in certificate transparency logs, return transparent as true
+	isTransparent := false
+	for _, c := range certs {
+		if c.SerialNumber == serialNumber {
+			isTransparent = true
+			break
+		}
+	}
+	return isTransparent, nil
 }
