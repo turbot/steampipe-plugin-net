@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"time"
@@ -325,15 +324,23 @@ func getOCSPDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateD
 		return nil, err
 	}
 	req, err := http.NewRequest("POST", requestUrl, bytes.NewReader(ocspBytes))
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Content-Type", "application/ocsp-request")
 	req.Header.Set("Connection", "close")
-	req.Header.Set("User-Agent", fmt.Sprintf("Turbot Steampipe (+https://steampipe.io)"))
+	req.Header.Set("User-Agent", "Steampipe")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
+
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read OCSP response: %v", err)
+	}
+
 	ocspResponse, err := ocsp.ParseResponseForCert(body, cert, issuerCert)
 	if err != nil {
 		return nil, err
@@ -442,11 +449,15 @@ func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h 
 
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to retrieve certificate transparency log: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read certificate transparency log: %v", err)
+	}
+
 	err = json.Unmarshal(body, &certs)
 	if err != nil {
 		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "unmarshal_error", err)
