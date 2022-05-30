@@ -18,9 +18,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/genkiroid/cert"
 	"golang.org/x/crypto/ocsp"
 
+	"github.com/turbot/steampipe-plugin-net/constants"
 	"github.com/turbot/steampipe-plugin-sdk/v3/grpc/proto"
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin"
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin/transform"
@@ -39,20 +39,27 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 		Name:        "net_certificate",
 		Description: "Certificate details for a domain.",
 		List: &plugin.ListConfig{
-			Hydrate:    tableNetCertificateList,
-			KeyColumns: plugin.SingleColumn("domain"),
+			Hydrate: tableNetCertificateList,
+			KeyColumns: plugin.KeyColumnSlice{
+				{Name: "domain", Require: plugin.Required, Operators: []string{"="}},
+				{Name: "protocol", Require: plugin.Optional, Operators: []string{"="}},
+				{Name: "cipher_suite", Require: plugin.Optional, Operators: []string{"="}},
+			},
 		},
 		Columns: []*plugin.Column{
 			// Top columns
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name the certificate represents."},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
-			{Name: "is_revoked", Type: proto.ColumnType_BOOL, Description: "Indicates whether the certificate was revoked, or not."},
+			{Name: "is_revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "Indicates whether the certificate was revoked, or not."},
 			{Name: "transparent", Type: proto.ColumnType_BOOL, Hydrate: getCertificateTransparencyLogs, Transform: transform.FromValue(), Description: "Indicates whether certificate is visible in certificate transparency logs."},
 			// Other columns
 			{Name: "chain", Type: proto.ColumnType_JSON, Description: "Certificate chain."},
 			{Name: "country", Type: proto.ColumnType_STRING, Description: "Country for the certificate."},
 			{Name: "dns_names", Type: proto.ColumnType_JSON, Transform: transform.FromField("DNSNames"), Description: "DNS names for the certificate."},
+			{Name: "crl_distribution_points", Type: proto.ColumnType_JSON, Transform: transform.FromField("CRLDistributionPoints"), Description: "A CRL distribution point (CDP) is a location on an LDAP directory server or Web server where a CA publishes CRLs."},
+			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "The Online Certificate Status Protocol (OCSP) is a protocol for determining the status of a digital certificate without requiring Certificate Revocation Lists (CRLs. The revocation check is by an online protocol is timely and does not require fetching large lists of revoked certificate on the client side. This test suite can be used to test OCSP Responder implementations."},
+			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getRevocationInformation, Transform: transform.FromField("OCSP"), Description: "OCSP server details about the certificate."},
 			{Name: "email_addresses", Type: proto.ColumnType_JSON, Description: "Email addresses for the certificate."},
 			{Name: "ip_address", Type: proto.ColumnType_IPADDR, Transform: transform.FromField("IPAddress"), Description: "IP address associated with the domain."},
 			{Name: "ip_addresses", Type: proto.ColumnType_JSON, Transform: transform.FromField("IPAddresses"), Description: "Array of IP addresses associated with the domain."},
@@ -70,11 +77,8 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "signature_algorithm", Type: proto.ColumnType_STRING, Description: "Signature algorithm of the certificate."},
 			{Name: "state", Type: proto.ColumnType_STRING, Description: "State of the certificate."},
 			{Name: "subject", Type: proto.ColumnType_STRING, Description: "Subject of the certificate."},
-			{Name: "crl_distribution_points", Type: proto.ColumnType_JSON, Transform: transform.FromField("CRLDistributionPoints"), Description: "A CRL distribution point (CDP) is a location on an LDAP directory server or Web server where a CA publishes CRLs."},
-			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "The Online Certificate Status Protocol (OCSP) is a protocol for determining the status of a digital certificate without requiring Certificate Revocation Lists (CRLs. The revocation check is by an online protocol is timely and does not require fetching large lists of revoked certificate on the client side. This test suite can be used to test OCSP Responder implementations."},
-			{Name: "protocol", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("Protocol"), Description: "The TLS version used by the connection."},
-			{Name: "cipher_suite", Type: proto.ColumnType_STRING, Hydrate: getProtocolDetails, Transform: transform.FromField("CipherSuite"), Description: "The cipher suite negotiated for the connection."},
-			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getOCSPDetails, Transform: transform.FromValue(), Description: "OCSP Details about the certificate."},
+			{Name: "protocol", Type: proto.ColumnType_STRING, Description: "The TLS version used by the connection."},
+			{Name: "cipher_suite", Type: proto.ColumnType_STRING, Description: "The cipher suite negotiated for the connection."},
 		},
 	}
 }
@@ -112,6 +116,10 @@ type tableNetCertificateRow struct {
 	OCSPServer             []string                 `json:"ocsp_server,omitempty"`
 
 	rawCert *x509.Certificate `json:"-"`
+
+	// Server
+	Protocol    string `json:"protocol,omitempty"`
+	CipherSuite string `json:"cipher_suite,omitempty"`
 }
 
 type Cert struct {
@@ -129,36 +137,47 @@ type Cert struct {
 
 func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
 
-	// Options for certificate retrieval - https://github.com/genkiroid/cert/blob/master/cert.go
-	// TODO - should we support env vars here?
-	cert.SkipVerify = false
-	cert.UTC = true
-	cert.TimeoutSeconds = 3 // short, certificates should be fast
-	cert.CipherSuite = ""   // all cipher suites are supported by default
+	plugin.Logger(ctx).Trace("tableNetCertificateList")
 
 	quals := d.KeyColumnQuals
 	dn := quals["domain"].GetStringValue()
+	protocol := quals["protocol"].GetStringValue()
+	cipher := quals["cipher_suite"].GetStringValue()
 
-	// Get the full certificate chain, so we can include it in results
-	items, err := cert.NewCerts([]string{dn})
-	if err != nil {
-		return nil, err
+	cfg := tls.Config{
+		Rand:               rand.Reader,
+		InsecureSkipVerify: false,
 	}
+
+	// Check for additional quals
+	if protocol != "" {
+		if _, ok := constants.TLSVersions[protocol]; !ok {
+			return nil, errors.New("unknown protocol version provided")
+		}
+		cfg.MaxVersion = constants.TLSVersions[protocol]
+		cfg.MinVersion = constants.TLSVersions[protocol]
+	}
+
+	if cipher != "" {
+		if _, ok := constants.CipherSuites[cipher]; !ok {
+			return nil, errors.New("unknown cipher suite provided")
+		}
+		cfg.CipherSuites = []uint16{constants.CipherSuites[cipher]}
+	}
+
+	addr := net.JoinHostPort(dn, "443")
+	conn, err := tls.Dial("tcp", addr, &cfg)
+	if err != nil {
+		return nil, errors.New("TLS connection failed: " + err.Error())
+	}
+	items := conn.ConnectionState().PeerCertificates
 
 	// Should not happen. If it does, then assume the cert was not found.
 	if len(items) <= 0 {
 		return nil, nil
 	}
 
-	// Errors getting the certificate are returned in the Error field. For
-	// example, a DNS timeout looking up the certificate.
-	if items[0].Error != "" {
-		return nil, err
-	}
-
-	// PRE: Certificate was found without error
-
-	chain := items[0].CertChain()
+	chain := items
 	if len(chain) <= 0 {
 		return nil, errors.New("Certificate chain should never be empty: " + dn)
 	}
@@ -216,12 +235,6 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		c.CRLDistributionPoints = i.CRLDistributionPoints
 		c.OCSPServer = i.OCSPServer
 
-		isRevoked, err := isRevokedCertificate(ctx, i.CRLDistributionPoints, c.SerialNumber)
-		if err != nil {
-			return nil, err
-		}
-		c.IsRevoked = *isRevoked
-
 		var bitLen int
 		switch publicKey := i.PublicKey.(type) {
 		case *rsa.PublicKey:
@@ -248,61 +261,108 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	// The primary certificate in the request has extra details we can pull
 	// out from the request. Add those now.
 	item.Domain = dn
-	item.IPAddress = items[0].IP
+	host, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+	if err != nil {
+		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "error retrieving host from network address", err)
+		return nil, fmt.Errorf("failed to extract host from network address: %v", err)
+	}
+	item.IPAddress = host
+
+	// Server information
+	item.Protocol = parseTLSVersion(conn.ConnectionState().Version)
+	item.CipherSuite = tls.CipherSuiteName(conn.ConnectionState().CipherSuite)
 
 	d.StreamListItem(ctx, item)
 
 	return nil, nil
 }
 
-func getProtocolDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
-	plugin.Logger(ctx).Trace("getProtocolDetails")
+//// HYDRATE FUNCTIONS
 
+// Check if certificate is transparent
+func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+	data := h.Item.(tableNetCertificateRow)
+	domainName := data.CommonName
+	serialNumber := data.SerialNumber
+
+	// crt.sh is a web interface to a distributed database called the certificate transparency logs.
+	// To validate if domain certificate is transparent, check your certificate in certificate transparency logs
+	var certs []Cert
+	baseURL := "https://crt.sh/"
+	url := fmt.Sprintf("%s?q=%s&match==&output=json", baseURL, domainName)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve certificate transparency log: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read certificate transparency log: %v", err)
+	}
+
+	err = json.Unmarshal(body, &certs)
+	if err != nil {
+		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "unmarshal_error", err)
+		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
+	}
+
+	// If certificate record found in certificate transparency logs, return transparent as true
+	isTransparent := false
+	for _, c := range certs {
+		if c.SerialNumber == serialNumber {
+			isTransparent = true
+			break
+		}
+	}
+	return isTransparent, nil
+}
+
+// Check certificate revocation information
+// This function checks both CRL and OCSP server to check for certificate revocation status
+func getRevocationInformation(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+	plugin.Logger(ctx).Trace("net_certificate.getRevocationInformation")
+
+	certRevocationInfo := map[string]interface{}{}
 	data := h.Item.(tableNetCertificateRow)
 
-	cfg := tls.Config{
-		Rand: rand.Reader,
-	}
-	addr := net.JoinHostPort(data.Domain, "443")
-	conn, err := tls.Dial("tcp", addr, &cfg)
+	// Check Certificate Revocation List (CRL) to verify certificate revocation status
+	isRevokedByCAOrOwner, err := isCertificateRevokedByCA(ctx, data.CRLDistributionPoints, data.SerialNumber)
 	if err != nil {
-		return nil, errors.New("TLS connection failed: " + err.Error())
+		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "error getting revocation information from CRL", err)
 	}
 
-	err = conn.HandshakeContext(ctx)
+	// Check Online Certificate Status Protocol (OCSP) to verify certificate revocation status
+	ocspCertificateRevocationInfo, err := fetchOCSPDetails(ctx, data)
 	if err != nil {
-		return nil, err
+		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "error getting revocation information from OCSP server", err)
 	}
 
-	var tlsVersion string
-	switch conn.ConnectionState().Version {
-	case tls.VersionTLS10:
-		tlsVersion = "TLS v1.0"
-	case tls.VersionTLS11:
-		tlsVersion = "TLS v1.1"
-	case tls.VersionTLS12:
-		tlsVersion = "TLS v1.2"
-	case tls.VersionTLS13:
-		tlsVersion = "TLS v1.3"
-	case tls.VersionSSL30:
-		tlsVersion = "SSL v3"
-	default:
-		tlsVersion = "unknown"
+	if ocspCertificateRevocationInfo != nil {
+		certRevocationInfo["OCSP"] = ocspCertificateRevocationInfo
 	}
 
-	return map[string]string{
-		"Protocol":    tlsVersion,
-		"CipherSuite": tls.CipherSuiteName(conn.ConnectionState().CipherSuite),
-	}, nil
+	if isRevokedByCAOrOwner == nil && ocspCertificateRevocationInfo == nil {
+		return nil, errors.New("unable to retrieve certificate revocation information")
+	}
+
+	isRevoked := false
+	if *isRevokedByCAOrOwner || ocspCertificateRevocationInfo.StatusString == "revoked" {
+		isRevoked = true
+	}
+	certRevocationInfo["IsRevoked"] = isRevoked
+
+	return certRevocationInfo, nil
 }
 
 // getOCSPDetails queries the ocsp_server as given in the certificate and fetches the ocsp status
 // adapted from https://github.com/crtsh/ocsp_monitor/blob/e5a2a490acb05dafb0d46f4d0f32c89b1e91a1b5/ocsp_monitor.go#L233
-func getOCSPDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
-	ocspData := OCSP{}
-	plugin.Logger(ctx).Trace("getOCSPDetails")
+func fetchOCSPDetails(ctx context.Context, data tableNetCertificateRow) (*OCSP, error) {
 
-	data := h.Item.(tableNetCertificateRow)
+	plugin.Logger(ctx).Trace("net_certificate.fetchOCSPDetails")
+
+	ocspData := OCSP{}
 
 	if len(data.Chain) == 0 {
 		plugin.Logger(ctx).Trace("could not find a certificate chain")
@@ -323,6 +383,7 @@ func getOCSPDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateD
 	if err != nil {
 		return nil, err
 	}
+
 	req, err := http.NewRequest("POST", requestUrl, bytes.NewReader(ocspBytes))
 	if err != nil {
 		return nil, err
@@ -360,38 +421,12 @@ func getOCSPDetails(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateD
 		ocspData.StatusString = "unexpected"
 	}
 
-	return ocspData, nil
-}
-
-func getOCSPRevocationReasonString(reasonCode int) string {
-	switch reasonCode {
-	case ocsp.Unspecified:
-		return "unspecified"
-	case ocsp.KeyCompromise:
-		return "key-compromise"
-	case ocsp.CACompromise:
-		return "ca-compromise"
-	case ocsp.AffiliationChanged:
-		return "affiliation-changed"
-	case ocsp.Superseded:
-		return "superseded"
-	case ocsp.CessationOfOperation:
-		return "cessation-of-operation"
-	case ocsp.CertificateHold:
-		return "certificate-hold"
-	case ocsp.RemoveFromCRL:
-		return "remove-from-crl"
-	case ocsp.PrivilegeWithdrawn:
-		return "privilefe-withdrawn"
-	case ocsp.AACompromise:
-		return "aa-compromise"
-	}
-	return "unknown"
+	return &ocspData, nil
 }
 
 // Checks if the certificate was revoked
-func isRevokedCertificate(ctx context.Context, crlDistributionPoints []string, serialNumber string) (*bool, error) {
-	plugin.Logger(ctx).Trace("isRevokedCertificate")
+func isCertificateRevokedByCA(ctx context.Context, crlDistributionPoints []string, serialNumber string) (*bool, error) {
+	plugin.Logger(ctx).Trace("isCertificateRevokedByCA")
 
 	isRevoked := false
 
@@ -435,42 +470,47 @@ func fetchCRL(url string) (*pkix.CertificateList, error) {
 	return x509.ParseCRL(body)
 }
 
-// Check if certificate is transparent
-func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
-	data := h.Item.(tableNetCertificateRow)
-	domainName := data.CommonName
-	serialNumber := data.SerialNumber
-
-	// crt.sh is a web interface to a distributed database called the certificate transparency logs.
-	// To validate if domain certificate is transparent, check your certificate in certificate transparency logs
-	var certs []Cert
-	baseURL := "https://crt.sh/"
-	url := fmt.Sprintf("%s?q=%s&match==&output=json", baseURL, domainName)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve certificate transparency log: %v", err)
+// Parse OCSP revocation status to a human-readable format
+func getOCSPRevocationReasonString(reasonCode int) string {
+	switch reasonCode {
+	case ocsp.Unspecified:
+		return "unspecified"
+	case ocsp.KeyCompromise:
+		return "key-compromise"
+	case ocsp.CACompromise:
+		return "ca-compromise"
+	case ocsp.AffiliationChanged:
+		return "affiliation-changed"
+	case ocsp.Superseded:
+		return "superseded"
+	case ocsp.CessationOfOperation:
+		return "cessation-of-operation"
+	case ocsp.CertificateHold:
+		return "certificate-hold"
+	case ocsp.RemoveFromCRL:
+		return "remove-from-crl"
+	case ocsp.PrivilegeWithdrawn:
+		return "privilefe-withdrawn"
+	case ocsp.AACompromise:
+		return "aa-compromise"
 	}
-	defer resp.Body.Close()
+	return "unknown"
+}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read certificate transparency log: %v", err)
+// Parse TLS version to human-readable format
+func parseTLSVersion(p uint16) string {
+	switch p {
+	case tls.VersionTLS10:
+		return "TLS v1.0"
+	case tls.VersionTLS11:
+		return "TLS v1.1"
+	case tls.VersionTLS12:
+		return "TLS v1.2"
+	case tls.VersionTLS13:
+		return "TLS v1.3"
+	case tls.VersionSSL30:
+		return "SSL v3"
+	default:
+		return "unknown"
 	}
-
-	err = json.Unmarshal(body, &certs)
-	if err != nil {
-		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "unmarshal_error", err)
-		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
-	}
-
-	// If certificate record found in certificate transparency logs, return transparent as true
-	isTransparent := false
-	for _, c := range certs {
-		if c.SerialNumber == serialNumber {
-			isTransparent = true
-			break
-		}
-	}
-	return isTransparent, nil
 }
