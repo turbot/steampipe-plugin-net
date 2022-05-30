@@ -247,7 +247,12 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 		m := new(dns.Msg)
 		m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
 		m.RecursionDesired = true
+
 		co, err := c.Dial(dnsServer)
+		if err != nil {
+			return nil, fmt.Errorf("unable to connect to the address: %v", err)
+		}
+
 		r, _, err := c.ExchangeWithConn(m, co)
 		if err != nil {
 			return nil, err

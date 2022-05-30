@@ -72,7 +72,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "organization", Type: proto.ColumnType_STRING, Description: "Organization of the certificate."},
 			{Name: "ou", Type: proto.ColumnType_JSON, Transform: transform.FromField("OU"), Description: "Organizational Unit of the certificate."},
 			{Name: "public_key_algorithm", Type: proto.ColumnType_STRING, Description: "Public key algorithm used by the certificate."},
-			{Name: "public_key_length", Type: proto.ColumnType_INT, Description: ""},
+			{Name: "public_key_length", Type: proto.ColumnType_INT, Description: "Specifies the size of the key."},
 			{Name: "serial_number", Type: proto.ColumnType_STRING, Description: "Serial number of the certificate."},
 			{Name: "signature_algorithm", Type: proto.ColumnType_STRING, Description: "Signature algorithm of the certificate."},
 			{Name: "state", Type: proto.ColumnType_STRING, Description: "State of the certificate."},
@@ -152,7 +152,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	// Check for additional quals
 	if protocol != "" {
 		if _, ok := constants.TLSVersions[protocol]; !ok {
-			return nil, errors.New("unknown protocol version provided")
+			return nil, fmt.Errorf("%s is not a valid protocol version. Possible values are: TLS v1.0, TLS v1.1, TLS v1.2, TLS v1.3 and SSL v3", protocol)
 		}
 		cfg.MaxVersion = constants.TLSVersions[protocol]
 		cfg.MinVersion = constants.TLSVersions[protocol]
@@ -160,7 +160,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 	if cipher != "" {
 		if _, ok := constants.CipherSuites[cipher]; !ok {
-			return nil, errors.New("unknown cipher suite provided")
+			return nil, fmt.Errorf("%s is not a valid cipher suite", cipher)
 		}
 		cfg.CipherSuites = []uint16{constants.CipherSuites[cipher]}
 	}
@@ -179,7 +179,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 	chain := items
 	if len(chain) <= 0 {
-		return nil, errors.New("Certificate chain should never be empty: " + dn)
+		return nil, errors.New("Certificate chain can not be empty: " + dn)
 	}
 
 	certRows := []tableNetCertificateRow{}
