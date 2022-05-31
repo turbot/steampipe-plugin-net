@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ocsp"
@@ -155,7 +156,6 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 			return nil, fmt.Errorf("%s is not a valid protocol version. Possible values are: TLS v1.0, TLS v1.1, TLS v1.2, TLS v1.3 and SSL v3", protocol)
 		}
 		cfg.MaxVersion = constants.TLSVersions[protocol]
-		cfg.MinVersion = constants.TLSVersions[protocol]
 	}
 
 	if cipher != "" {
@@ -166,8 +166,19 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	}
 
 	addr := net.JoinHostPort(dn, "443")
-	conn, err := tls.Dial("tcp", addr, &cfg)
+	dialer := &net.Dialer{
+		Timeout: time.Duration(3) * time.Second, // short, certificates should be fast
+	}
+
+	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &cfg)
 	if err != nil {
+		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "TLS connection failed: ", err)
+
+		// Return nil, if unsupported version or incompatible ciphers provided
+		if strings.Contains(err.Error(), "no supported versions satisfy MinVersion and MaxVersion") || strings.Contains(err.Error(), "protocol version not supported") {
+			return nil, nil
+		}
+
 		return nil, errors.New("TLS connection failed: " + err.Error())
 	}
 	items := conn.ConnectionState().PeerCertificates

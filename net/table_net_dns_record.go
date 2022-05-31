@@ -64,7 +64,7 @@ type tableDNSRecordRow struct {
 func getTypeQuals(typeQualsWrapper *proto.Quals) []string {
 	if typeQualsWrapper == nil {
 		var allTypes []string
-		return append(allTypes, "A", "AAAA", "CERT", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT", "CAA")
+		return append(allTypes, "A", "AAAA", "CAA", "CERT", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT")
 	}
 	var types []string
 	typeQuals := typeQualsWrapper.Quals[0].Value
@@ -84,6 +84,8 @@ func dnsTypeToDNSLibTypeEnum(recordType string) (uint16, error) {
 		return dns.TypeA, nil
 	case "AAAA":
 		return dns.TypeAAAA, nil
+	case "CAA":
+		return dns.TypeCAA, nil
 	case "CERT":
 		return dns.TypeCERT, nil
 	case "CNAME":
@@ -100,8 +102,6 @@ func dnsTypeToDNSLibTypeEnum(recordType string) (uint16, error) {
 		return dns.TypeSRV, nil
 	case "TXT":
 		return dns.TypeTXT, nil
-	case "CAA":
-		return dns.TypeCAA, nil
 	}
 	return dns.TypeANY, fmt.Errorf("Unsupported DNS record type: %s", recordType)
 }
@@ -122,6 +122,14 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 			Type:   dnsType,
 			IP:     typedRecord.AAAA.String(),
 			TTL:    typedRecord.Hdr.Ttl,
+		})
+	case *dns.CAA:
+		records = append(records, tableDNSRecordRow{
+			Domain: domain,
+			Type:   dnsType,
+			TTL:    typedRecord.Hdr.Ttl,
+			Tag:    typedRecord.Tag,
+			Value:  typedRecord.Value,
 		})
 	case *dns.CERT:
 		records = append(records, tableDNSRecordRow{
@@ -188,14 +196,6 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 				Value:  txt,
 			})
 		}
-	case *dns.CAA:
-		records = append(records, tableDNSRecordRow{
-			Domain: domain,
-			Type:   dnsType,
-			TTL:    typedRecord.Hdr.Ttl,
-			Tag:    typedRecord.Tag,
-			Value:  typedRecord.Value,
-		})
 	}
 	return records
 }
