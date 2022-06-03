@@ -111,10 +111,6 @@ type tableNetCertificateRow struct {
 	OCSPServer             []string                 `json:"ocsp_server,omitempty"`
 
 	rawCert *x509.Certificate `json:"-"`
-
-	// Server
-	Protocol    string `json:"protocol,omitempty"`
-	CipherSuite string `json:"cipher_suite,omitempty"`
 }
 
 type Cert struct {
@@ -478,22 +474,4 @@ func getOCSPRevocationReasonString(reasonCode int) string {
 		return "aa-compromise"
 	}
 	return "unknown"
-}
-
-// Parse TLS version to human-readable format
-func parseTLSVersion(p uint16) string {
-	switch p {
-	case tls.VersionTLS10:
-		return "TLS v1.0"
-	case tls.VersionTLS11:
-		return "TLS v1.1"
-	case tls.VersionTLS12:
-		return "TLS v1.2"
-	case tls.VersionTLS13:
-		return "TLS v1.3"
-	case tls.VersionSSL30:
-		return "SSL v3"
-	default:
-		return "unknown"
-	}
 }

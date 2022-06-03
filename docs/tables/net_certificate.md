@@ -14,7 +14,7 @@ select
 from
   net_certificate
 where
-  domain = 'steampipe.io'
+  domain = 'steampipe.io';
 ```
 
 ### Time until the certificate expires
@@ -26,7 +26,7 @@ select
 from
   net_certificate
 where
-  domain = 'steampipe.io'
+  domain = 'steampipe.io';
 ```
 
 ### Check if the certificate is currently valid
@@ -41,5 +41,19 @@ from
 where
   domain = 'steampipe.io'
   and not_before < current_timestamp
-  and not_after > current_timestamp
+  and not_after > current_timestamp;
+```
+
+### Check if the certificate was revoked by the CA
+
+```sql
+select
+  domain,
+  not_before,
+  not_after
+from
+  net_certificate
+where
+  domain = 'steampipe.io'
+  and is_revoked;
 ```
