@@ -16,12 +16,10 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/ocsp"
 
-	"github.com/turbot/steampipe-plugin-net/constants"
 	"github.com/turbot/steampipe-plugin-sdk/v3/grpc/proto"
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin"
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin/transform"
@@ -43,8 +41,6 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			Hydrate: tableNetCertificateList,
 			KeyColumns: plugin.KeyColumnSlice{
 				{Name: "domain", Require: plugin.Required, Operators: []string{"="}},
-				{Name: "protocol", Require: plugin.Optional, Operators: []string{"="}},
-				{Name: "cipher_suite", Require: plugin.Optional, Operators: []string{"="}},
 			},
 		},
 		Columns: []*plugin.Column{
@@ -54,7 +50,16 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
 			{Name: "is_revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "Indicates whether the certificate was revoked, or not."},
 			{Name: "transparent", Type: proto.ColumnType_BOOL, Hydrate: getCertificateTransparencyLogs, Transform: transform.FromValue(), Description: "Indicates whether certificate is visible in certificate transparency logs."},
+			{Name: "is_ca", Type: proto.ColumnType_BOOL, Transform: transform.FromField("IsCertificateAuthority"), Description: "True if the certificate represents a certificate authority."},
 			// Other columns
+			{Name: "serial_number", Type: proto.ColumnType_STRING, Description: "Serial number of the certificate."},
+			{Name: "subject", Type: proto.ColumnType_STRING, Description: "Subject of the certificate."},
+			{Name: "public_key_algorithm", Type: proto.ColumnType_STRING, Description: "Public key algorithm used by the certificate."},
+			{Name: "public_key_length", Type: proto.ColumnType_INT, Description: "Specifies the size of the key."},
+			{Name: "signature_algorithm", Type: proto.ColumnType_STRING, Description: "Signature algorithm of the certificate."},
+			{Name: "ip_address", Type: proto.ColumnType_IPADDR, Transform: transform.FromField("IPAddress"), Description: "IP address associated with the domain."},
+			{Name: "issuer", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
+			{Name: "issuer_name", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
 			{Name: "chain", Type: proto.ColumnType_JSON, Description: "Certificate chain."},
 			{Name: "country", Type: proto.ColumnType_STRING, Description: "Country for the certificate."},
 			{Name: "dns_names", Type: proto.ColumnType_JSON, Transform: transform.FromField("DNSNames"), Description: "DNS names for the certificate."},
@@ -62,24 +67,13 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "The Online Certificate Status Protocol (OCSP) is a protocol for determining the status of a digital certificate without requiring Certificate Revocation Lists (CRLs. The revocation check is by an online protocol is timely and does not require fetching large lists of revoked certificate on the client side. This test suite can be used to test OCSP Responder implementations."},
 			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getRevocationInformation, Transform: transform.FromField("OCSP"), Description: "OCSP server details about the certificate."},
 			{Name: "email_addresses", Type: proto.ColumnType_JSON, Description: "Email addresses for the certificate."},
-			{Name: "ip_address", Type: proto.ColumnType_IPADDR, Transform: transform.FromField("IPAddress"), Description: "IP address associated with the domain."},
 			{Name: "ip_addresses", Type: proto.ColumnType_JSON, Transform: transform.FromField("IPAddresses"), Description: "Array of IP addresses associated with the domain."},
-			{Name: "is_ca", Type: proto.ColumnType_BOOL, Transform: transform.FromField("IsCertificateAuthority"), Description: "True if the certificate represents a certificate authority."},
-			{Name: "issuer", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
-			{Name: "issuer_name", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
 			{Name: "issuing_certificate_url", Type: proto.ColumnType_JSON, Transform: transform.FromField("IssuingCertificateURL"), Description: "List of URLs of the issuing certificates."},
 			{Name: "locality", Type: proto.ColumnType_STRING, Description: "Locality of the certificate."},
 			{Name: "not_before", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate is valid from. Also see not_after."},
 			{Name: "organization", Type: proto.ColumnType_STRING, Description: "Organization of the certificate."},
 			{Name: "ou", Type: proto.ColumnType_JSON, Transform: transform.FromField("OU"), Description: "Organizational Unit of the certificate."},
-			{Name: "public_key_algorithm", Type: proto.ColumnType_STRING, Description: "Public key algorithm used by the certificate."},
-			{Name: "public_key_length", Type: proto.ColumnType_INT, Description: "Specifies the size of the key."},
-			{Name: "serial_number", Type: proto.ColumnType_STRING, Description: "Serial number of the certificate."},
-			{Name: "signature_algorithm", Type: proto.ColumnType_STRING, Description: "Signature algorithm of the certificate."},
 			{Name: "state", Type: proto.ColumnType_STRING, Description: "State of the certificate."},
-			{Name: "subject", Type: proto.ColumnType_STRING, Description: "Subject of the certificate."},
-			{Name: "protocol", Type: proto.ColumnType_STRING, Description: "The TLS version used by the connection."},
-			{Name: "cipher_suite", Type: proto.ColumnType_STRING, Description: "The cipher suite negotiated for the connection."},
 		},
 	}
 }
@@ -140,29 +134,17 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 	plugin.Logger(ctx).Trace("tableNetCertificateList")
 
-	quals := d.KeyColumnQuals
-	dn := quals["domain"].GetStringValue()
-	protocol := quals["protocol"].GetStringValue()
-	cipher := quals["cipher_suite"].GetStringValue()
+	// You must pass 1 or more domain quals to the query
+	if d.KeyColumnQuals["domain"] == nil {
+		plugin.Logger(ctx).Trace("tableDNSRecordList", "No domain quals provided")
+		return nil, nil
+	}
+	dn := d.KeyColumnQualString("domain")
 
+	// Create TLS config
 	cfg := tls.Config{
 		Rand:               rand.Reader,
-		InsecureSkipVerify: false,
-	}
-
-	// Check for additional quals
-	if protocol != "" {
-		if _, ok := constants.TLSVersions[protocol]; !ok {
-			return nil, fmt.Errorf("%s is not a valid protocol version. Possible values are: TLS v1.0, TLS v1.1, TLS v1.2, TLS v1.3 and SSL v3", protocol)
-		}
-		cfg.MaxVersion = constants.TLSVersions[protocol]
-	}
-
-	if cipher != "" {
-		if _, ok := constants.CipherSuites[cipher]; !ok {
-			return nil, fmt.Errorf("%s is not a valid cipher suite", cipher)
-		}
-		cfg.CipherSuites = []uint16{constants.CipherSuites[cipher]}
+		InsecureSkipVerify: true,
 	}
 
 	addr := net.JoinHostPort(dn, "443")
@@ -173,12 +155,6 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &cfg)
 	if err != nil {
 		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "TLS connection failed: ", err)
-
-		// Return nil, if unsupported version or incompatible ciphers provided
-		if strings.Contains(err.Error(), "no supported versions satisfy MinVersion and MaxVersion") || strings.Contains(err.Error(), "protocol version not supported") {
-			return nil, nil
-		}
-
 		return nil, errors.New("TLS connection failed: " + err.Error())
 	}
 	items := conn.ConnectionState().PeerCertificates
@@ -279,10 +255,6 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	}
 	item.IPAddress = host
 
-	// Server information
-	item.Protocol = parseTLSVersion(conn.ConnectionState().Version)
-	item.CipherSuite = tls.CipherSuiteName(conn.ConnectionState().CipherSuite)
-
 	d.StreamListItem(ctx, item)
 
 	return nil, nil
@@ -316,7 +288,7 @@ func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h 
 	err = json.Unmarshal(body, &certs)
 	if err != nil {
 		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "unmarshal_error", err)
-		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
+		return nil, nil
 	}
 
 	// If certificate record found in certificate transparency logs, return transparent as true
