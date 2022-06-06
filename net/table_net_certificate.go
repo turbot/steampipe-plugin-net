@@ -48,8 +48,8 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name the certificate represents."},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
-			{Name: "revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "Indicates whether the certificate was revoked, or not."},
-			{Name: "transparent", Type: proto.ColumnType_BOOL, Hydrate: getCertificateTransparencyLogs, Transform: transform.FromValue(), Description: "Indicates whether certificate is visible in certificate transparency logs."},
+			{Name: "revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "True if the certificate was revoked."},
+			{Name: "transparent", Type: proto.ColumnType_BOOL, Hydrate: getCertificateTransparencyLogs, Transform: transform.FromValue(), Description: "True if the certificate is visible in certificate transparency logs."},
 			{Name: "is_ca", Type: proto.ColumnType_BOOL, Transform: transform.FromField("IsCertificateAuthority"), Description: "True if the certificate represents a certificate authority."},
 			// Other columns
 			{Name: "serial_number", Type: proto.ColumnType_STRING, Description: "Serial number of the certificate."},
@@ -64,7 +64,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "country", Type: proto.ColumnType_STRING, Description: "Country for the certificate."},
 			{Name: "dns_names", Type: proto.ColumnType_JSON, Transform: transform.FromField("DNSNames"), Description: "DNS names for the certificate."},
 			{Name: "crl_distribution_points", Type: proto.ColumnType_JSON, Transform: transform.FromField("CRLDistributionPoints"), Description: "A CRL distribution point (CDP) is a location on an LDAP directory server or Web server where a CA publishes CRLs."},
-			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "A list of OCSP URL determines whether the application uses a general OCSP responder to send requests during certificate validation for end entity certificates."},
+			{Name: "ocsp_servers", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServers"), Description: "A list of OCSP URL determines whether the application uses a general OCSP responder to send requests during certificate validation for end entity certificates."},
 			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getRevocationInformation, Transform: transform.FromField("OCSP"), Description: "Describes OCSP revocation status of the certificate."},
 			{Name: "email_addresses", Type: proto.ColumnType_JSON, Description: "Email addresses for the certificate."},
 			{Name: "ip_addresses", Type: proto.ColumnType_JSON, Transform: transform.FromField("IPAddresses"), Description: "Array of IP addresses associated with the domain."},
@@ -107,7 +107,7 @@ type tableNetCertificateRow struct {
 	State                  string                   `json:"state,omitempty"`
 	Subject                string                   `json:"subject,omitempty"`
 	CRLDistributionPoints  []string                 `json:"crl_distribution_points,omitempty"`
-	OCSPServer             []string                 `json:"ocsp_server,omitempty"`
+	OCSPServers            []string                 `json:"ocsp_server,omitempty"`
 
 	rawCert *x509.Certificate `json:"-"`
 }
@@ -215,7 +215,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		c.SignatureAlgorithm = i.SignatureAlgorithm.String()
 		c.Subject = i.Subject.String()
 		c.CRLDistributionPoints = i.CRLDistributionPoints
-		c.OCSPServer = i.OCSPServer
+		c.OCSPServers = i.OCSPServer
 
 		var bitLen int
 		switch publicKey := i.PublicKey.(type) {
@@ -355,51 +355,60 @@ func fetchOCSPDetails(ctx context.Context, data tableNetCertificateRow) (*OCSP, 
 		plugin.Logger(ctx).Trace("could not find OCSP verification server")
 		return nil, nil
 	}
-	requestUrl := cert.OCSPServer[0]
 
-	ocspBytes, err := ocsp.CreateRequest(cert, issuerCert, &ocsp.RequestOptions{})
-	if err != nil {
-		return nil, err
+	for c, requestUrl := range cert.OCSPServer {
+		ocspBytes, err := ocsp.CreateRequest(cert, issuerCert, &ocsp.RequestOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		req, err := http.NewRequest("POST", requestUrl, bytes.NewReader(ocspBytes))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/ocsp-request")
+		req.Header.Set("Connection", "close")
+		req.Header.Set("User-Agent", "Steampipe")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			plugin.Logger(ctx).Error("net_certificate.fetchOCSPDetails", "failed to read OCSP response: ", err)
+
+			// If one URL fails, try other URLs in the list until certificate status is determined or this is the last URL in the list
+			if c+1 == len(cert.OCSPServer) {
+				return nil, fmt.Errorf("failed to read OCSP response: %v", err)
+			}
+			continue
+		}
+
+		ocspResponse, err := ocsp.ParseResponseForCert(body, cert, issuerCert)
+		if err != nil {
+			return nil, err
+		}
+
+		ocspData = OCSP{}
+		switch ocspResponse.Status {
+		case ocsp.Good:
+			ocspData.StatusString = "good"
+		case ocsp.Unknown:
+			ocspData.StatusString = "unknown"
+		case ocsp.Revoked:
+			ocspData.RevokedAt = &ocspResponse.RevokedAt
+			ocspData.RevocationReasonString = getOCSPRevocationReasonString(ocspResponse.RevocationReason)
+			ocspData.StatusString = "revoked"
+		default:
+			ocspData.StatusString = "unexpected"
+		}
+
+		return &ocspData, nil
 	}
 
-	req, err := http.NewRequest("POST", requestUrl, bytes.NewReader(ocspBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/ocsp-request")
-	req.Header.Set("Connection", "close")
-	req.Header.Set("User-Agent", "Steampipe")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read OCSP response: %v", err)
-	}
-
-	ocspResponse, err := ocsp.ParseResponseForCert(body, cert, issuerCert)
-	if err != nil {
-		return nil, err
-	}
-
-	ocspData = OCSP{}
-	switch ocspResponse.Status {
-	case ocsp.Good:
-		ocspData.StatusString = "good"
-	case ocsp.Unknown:
-		ocspData.StatusString = "unknown"
-	case ocsp.Revoked:
-		ocspData.RevokedAt = &ocspResponse.RevokedAt
-		ocspData.RevocationReasonString = getOCSPRevocationReasonString(ocspResponse.RevocationReason)
-		ocspData.StatusString = "revoked"
-	default:
-		ocspData.StatusString = "unexpected"
-	}
-
-	return &ocspData, nil
+	return nil, nil
 }
 
 // Checks if the certificate was revoked
