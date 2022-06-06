@@ -48,7 +48,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name the certificate represents."},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
-			{Name: "is_revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "Indicates whether the certificate was revoked, or not."},
+			{Name: "revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "Indicates whether the certificate was revoked, or not."},
 			{Name: "transparent", Type: proto.ColumnType_BOOL, Hydrate: getCertificateTransparencyLogs, Transform: transform.FromValue(), Description: "Indicates whether certificate is visible in certificate transparency logs."},
 			{Name: "is_ca", Type: proto.ColumnType_BOOL, Transform: transform.FromField("IsCertificateAuthority"), Description: "True if the certificate represents a certificate authority."},
 			// Other columns
@@ -59,13 +59,13 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "signature_algorithm", Type: proto.ColumnType_STRING, Description: "Signature algorithm of the certificate."},
 			{Name: "ip_address", Type: proto.ColumnType_IPADDR, Transform: transform.FromField("IPAddress"), Description: "IP address associated with the domain."},
 			{Name: "issuer", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
-			{Name: "issuer_name", Type: proto.ColumnType_STRING, Description: "Issuer of the certificate."},
+			{Name: "issuer_name", Type: proto.ColumnType_STRING, Description: "Common name for the issuer of the certificate."},
 			{Name: "chain", Type: proto.ColumnType_JSON, Description: "Certificate chain."},
 			{Name: "country", Type: proto.ColumnType_STRING, Description: "Country for the certificate."},
 			{Name: "dns_names", Type: proto.ColumnType_JSON, Transform: transform.FromField("DNSNames"), Description: "DNS names for the certificate."},
 			{Name: "crl_distribution_points", Type: proto.ColumnType_JSON, Transform: transform.FromField("CRLDistributionPoints"), Description: "A CRL distribution point (CDP) is a location on an LDAP directory server or Web server where a CA publishes CRLs."},
-			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "The Online Certificate Status Protocol (OCSP) is a protocol for determining the status of a digital certificate without requiring Certificate Revocation Lists (CRLs. The revocation check is by an online protocol is timely and does not require fetching large lists of revoked certificate on the client side. This test suite can be used to test OCSP Responder implementations."},
-			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getRevocationInformation, Transform: transform.FromField("OCSP"), Description: "OCSP server details about the certificate."},
+			{Name: "ocsp_server", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServer"), Description: "A list of OCSP URL determines whether the application uses a general OCSP responder to send requests during certificate validation for end entity certificates."},
+			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getRevocationInformation, Transform: transform.FromField("OCSP"), Description: "Describes OCSP revocation status of the certificate."},
 			{Name: "email_addresses", Type: proto.ColumnType_JSON, Description: "Email addresses for the certificate."},
 			{Name: "ip_addresses", Type: proto.ColumnType_JSON, Transform: transform.FromField("IPAddresses"), Description: "Array of IP addresses associated with the domain."},
 			{Name: "issuing_certificate_url", Type: proto.ColumnType_JSON, Transform: transform.FromField("IssuingCertificateURL"), Description: "List of URLs of the issuing certificates."},
@@ -85,7 +85,6 @@ type tableNetCertificateRow struct {
 	Domain     string    `json:"domain,omitempty"`
 	CommonName string    `json:"common_name,omitempty"`
 	NotAfter   time.Time `json:"not_after,omitempty"`
-	IsRevoked  bool      `json:"is_revoked,omitempty"`
 	// Other
 	Chain                  []tableNetCertificateRow `json:"chain,omitempty"`
 	Country                string                   `json:"country,omitempty"`
@@ -162,7 +161,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 	chain := items
 	if len(chain) <= 0 {
-		return nil, errors.New("Certificate chain can not be empty: " + dn)
+		return nil, errors.New("Certificate chain cannot be empty: " + dn)
 	}
 
 	certRows := []tableNetCertificateRow{}
@@ -330,7 +329,7 @@ func getRevocationInformation(ctx context.Context, d *plugin.QueryData, h *plugi
 	if *isRevokedByCAOrOwner || ocspCertificateRevocationInfo.StatusString == "revoked" {
 		isRevoked = true
 	}
-	certRevocationInfo["IsRevoked"] = isRevoked
+	certRevocationInfo["Revoked"] = isRevoked
 
 	return certRevocationInfo, nil
 }

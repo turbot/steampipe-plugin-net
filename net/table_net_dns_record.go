@@ -32,7 +32,7 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			{Name: "ip", Transform: transform.FromField("IP"), Type: proto.ColumnType_IPADDR, Description: "IP address for the record, such as for A records."},
 			{Name: "target", Type: proto.ColumnType_STRING, Description: "Target of the record, such as the target address for CNAME records."},
 			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
-			{Name: "tag", Type: proto.ColumnType_STRING, Description: "An ASCII string that represents the identifier of the property represented by the record."},
+			{Name: "tag", Type: proto.ColumnType_STRING, Description: "An ASCII string that represents the identifier of the property represented by the record, such as for CAA records."},
 			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
 			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
 			{Name: "serial", Type: proto.ColumnType_INT, Description: "Specifies the SOA serial number."},

@@ -55,5 +55,33 @@ from
   net_certificate
 where
   domain = 'steampipe.io'
-  and is_revoked;
+  and revoked;
+```
+
+### Check certificate revocation status with OCSP
+
+```sql
+select
+  domain,
+  ocsp ->> 'status' as revocation_status,
+  ocsp ->> 'revoked_at' as revoked_at
+from
+  net_certificate
+where
+  domain = 'steampipe.io';
+```
+
+### Check if certificate using insecure algorithm (e.g., MD2, MD5, SHA1)
+
+```sql
+select
+  domain,
+  not_before,
+  not_after,
+  signature_algorithm
+from
+  net_certificate
+where
+  domain = 'steampipe.io'
+  and signature_algorithm like any (array['%SHA1%', '%MD2%', '%MD5%']);
 ```
