@@ -14,7 +14,7 @@ select
 from
   net_connection
 where
-  address = 'steampipe.io:443'
+  address = 'steampipe.io:443';
 ```
 
 ### Test if SSH is open on server 68.183.153.44
@@ -25,7 +25,7 @@ select
 from
   net_connection
 where
-  and address = '68.183.153.44:ssh'
+  and address = '68.183.153.44:ssh';
 ```
 
 ### Test a UDP connection to DNS server 1.1.1.1 on port 53
@@ -37,7 +37,7 @@ from
   net_connection
 where
   protocol = 'udp'
-  and address = '1.1.1.1:53'
+  and address = '1.1.1.1:53';
 ```
 
 ### Test if RDP is open on server 65.2.9.152
@@ -49,5 +49,5 @@ from
   net_connection
 where
   protocol = 'tcp'
-  and address = '65.2.9.152:3389'
+  and address = '65.2.9.152:3389';
 ```

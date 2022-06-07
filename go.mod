@@ -3,9 +3,9 @@ module github.com/turbot/steampipe-plugin-net
 go 1.18
 
 require (
-	github.com/genkiroid/cert v0.0.0-20191007122723-897560fbbe50
 	github.com/miekg/dns v1.1.47
 	github.com/turbot/steampipe-plugin-sdk/v3 v3.1.0
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 )
 
 require (
