@@ -64,7 +64,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 			{Name: "country", Type: proto.ColumnType_STRING, Description: "Country for the certificate."},
 			{Name: "dns_names", Type: proto.ColumnType_JSON, Transform: transform.FromField("DNSNames"), Description: "DNS names for the certificate."},
 			{Name: "crl_distribution_points", Type: proto.ColumnType_JSON, Transform: transform.FromField("CRLDistributionPoints"), Description: "A CRL distribution point (CDP) is a location on an LDAP directory server or Web server where a CA publishes CRLs."},
-			{Name: "ocsp_servers", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServers"), Description: "A list of OCSP URL determines whether the application uses a general OCSP responder to send requests during certificate validation for end entity certificates."},
+			{Name: "ocsp_servers", Type: proto.ColumnType_JSON, Transform: transform.FromField("OCSPServers"), Description: "A list of OCSP URLs that are contacted by all end entity certificates to determine revocation status."},
 			{Name: "ocsp", Type: proto.ColumnType_JSON, Hydrate: getRevocationInformation, Transform: transform.FromField("OCSP"), Description: "Describes OCSP revocation status of the certificate."},
 			{Name: "email_addresses", Type: proto.ColumnType_JSON, Description: "Email addresses for the certificate."},
 			{Name: "ip_addresses", Type: proto.ColumnType_JSON, Transform: transform.FromField("IPAddresses"), Description: "Array of IP addresses associated with the domain."},
