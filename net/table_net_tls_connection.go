@@ -117,7 +117,7 @@ func getTLSConnectionRowData(ctx context.Context, address string, protocol strin
 			r.Error = err.Error()
 		}
 	} else {
-		r.Error = "unsupported combination"
+		r.Error = "unsupported protocol-cipher combination"
 	}
 
 	return r
