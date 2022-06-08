@@ -8,5 +8,4 @@ var TLSVersions = map[string]uint16{
 	"TLS v1.1": tls.VersionTLS11,
 	"TLS v1.2": tls.VersionTLS12,
 	"TLS v1.3": tls.VersionTLS13,
-	"SSL v3":   tls.VersionSSL30,
 }
