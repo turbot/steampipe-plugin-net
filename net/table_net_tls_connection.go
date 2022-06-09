@@ -35,7 +35,7 @@ func tableNetTLSConnection(ctx context.Context) *plugin.Table {
 			{Name: "version", Type: proto.ColumnType_STRING, Description: "The TLS version used by the connection."},
 			{Name: "cipher_suite_name", Type: proto.ColumnType_STRING, Description: "The cipher suite negotiated for the connection."},
 			{Name: "cipher_suite_id", Type: proto.ColumnType_STRING, Description: "The ID of the cipher suite."},
-			{Name: "handshake_completed", Type: proto.ColumnType_BOOL, Description: "True if the handshake has concluded."},
+			{Name: "handshake_completed", Type: proto.ColumnType_BOOL, Description: "True if the handshake was successful"},
 			{Name: "error", Type: proto.ColumnType_STRING, Description: "Error message if the connection failed."},
 			{Name: "fallback_scsv_supported", Type: proto.ColumnType_BOOL, Description: "True if the TLS fallback SCSV is enabled to prevent protocol downgrade attacks.", Hydrate: checkFallbackSCSVSupport, Transform: transform.FromValue()},
 			{Name: "alpn_supported", Type: proto.ColumnType_BOOL, Description: "True if the ALPN is supported.", Hydrate: checkAPLNSupport, Transform: transform.FromValue()},
@@ -59,7 +59,6 @@ type tlsConnectionRow struct {
 //// LIST FUNCTION
 
 func tableNetTLSConnectionList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
-
 	plugin.Logger(ctx).Trace("tableNetTLSConnectionList")
 
 	// You must pass 1 or more domain quals to the query
@@ -104,7 +103,7 @@ func getTLSConnectionRowData(ctx context.Context, address string, protocol strin
 		CipherSuiteName: cipher,
 		CipherSuiteID:   fmt.Sprintf("0x%04x", constants.CipherSuites[cipher]),
 	}
-	if isSupported(protocol, cipher) {
+	if cipherSuiteIsSupported(protocol, cipher) {
 		conn, err := getTLSConnection(ctx, address, protocol, cipher)
 		if err == nil {
 			if conn != nil {

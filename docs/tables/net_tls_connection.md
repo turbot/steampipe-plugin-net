@@ -4,20 +4,27 @@ Test TLS connection to the given network address (e.g. steampipe.io:443) by init
 
 Note: An `address` of the format domain:port (e.g. steampipe.io:443) must be provided.
 
-You can also provide a protocol version and cipher suite to verify the TLS connection as per requirement. For example:
+You can also provide a protocol version and/or cipher suite to verify specific TLS connection requirements. For example:
 
 ```sql
-select * from net_tls_connection where address = 'steampipe.io:443' and version = 'TLS v1.3' and cipher_suite_name = 'TLS_AES_128_GCM_SHA256';
+select
+  *
+from
+  net_tls_connection
+where
+  address = 'steampipe.io:443'
+  and version = 'TLS v1.3'
+  and cipher_suite_name = 'TLS_AES_128_GCM_SHA256';
 ```
 
 Note:
 
 - SSL protocols (e.g. SSL v3 and SSL v2) are not supported by this table.
-- This table supports a limited set of cipher suites (supported by https://pkg.go.dev/crypto/tls package).
+- This table supports a limited set of cipher suites, as defined by the [TLS package](https://pkg.go.dev/crypto/tls#pkg-constants).
 
 ## Examples
 
-### Check all the supported protocols and cipher suites for which a TLS connection could be established
+### List all supported protocols and cipher suites for which a TLS connection could be established
 
 ```sql
 select
@@ -48,7 +55,7 @@ where
   and cipher_suite_name = 'TLS_AES_128_GCM_SHA256';
 ```
 
-### Check if server allows to connect with an insecure cipher suite
+### Check if a server allows connections with an insecure cipher suite
 
 ```sql
 select

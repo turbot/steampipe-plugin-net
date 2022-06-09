@@ -71,7 +71,7 @@ func cipherSuitesUptoTLS11() []string {
 }
 
 // Check if given cipher suite is supported by the given protocol version
-func isSupported(protocol string, cipher string) bool {
+func cipherSuiteIsSupported(protocol string, cipher string) bool {
 	switch protocol {
 	case "TLS v1.0":
 	case "TLS v1.1":
