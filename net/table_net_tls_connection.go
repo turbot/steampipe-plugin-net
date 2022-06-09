@@ -35,7 +35,7 @@ func tableNetTLSConnection(ctx context.Context) *plugin.Table {
 			{Name: "version", Type: proto.ColumnType_STRING, Description: "The TLS version used by the connection."},
 			{Name: "cipher_suite_name", Type: proto.ColumnType_STRING, Description: "The cipher suite negotiated for the connection."},
 			{Name: "cipher_suite_id", Type: proto.ColumnType_STRING, Description: "The ID of the cipher suite."},
-			{Name: "handshake_completed", Type: proto.ColumnType_BOOL, Description: "True if the handshake was successful"},
+			{Name: "handshake_completed", Type: proto.ColumnType_BOOL, Description: "True if the handshake was successful."},
 			{Name: "error", Type: proto.ColumnType_STRING, Description: "Error message if the connection failed."},
 			{Name: "fallback_scsv_supported", Type: proto.ColumnType_BOOL, Description: "True if the TLS fallback SCSV is enabled to prevent protocol downgrade attacks.", Hydrate: checkFallbackSCSVSupport, Transform: transform.FromValue()},
 			{Name: "alpn_supported", Type: proto.ColumnType_BOOL, Description: "True if the ALPN is supported.", Hydrate: checkAPLNSupport, Transform: transform.FromValue()},
