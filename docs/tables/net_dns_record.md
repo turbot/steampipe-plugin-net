@@ -6,6 +6,7 @@ The default DNS server used for all requests is the Google global public server,
 
 - Update the `dns_server` configuration argument.
 - Specify `dns_server` in the query, which overrides the default and `dns_server` configuration argument. For instance, to use Cloudflare's global public server instead:
+
   ```sql
   select
     *
@@ -28,7 +29,7 @@ select
 from
   net_dns_record
 where
-  domain = 'steampipe.io'
+  domain = 'steampipe.io';
 ```
 
 ### List TXT records for a domain
@@ -41,7 +42,7 @@ from
   net_dns_record
 where
   domain = 'github.com'
-  and type = 'TXT'
+  and type = 'TXT';
 ```
 
 ### Mail server records for a domain in priority order
@@ -57,5 +58,5 @@ where
   domain = 'turbot.com'
   and type = 'MX'
 order by
-  priority
+  priority;
 ```

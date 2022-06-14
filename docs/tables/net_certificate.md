@@ -14,7 +14,7 @@ select
 from
   net_certificate
 where
-  domain = 'steampipe.io'
+  domain = 'steampipe.io';
 ```
 
 ### Time until the certificate expires
@@ -26,7 +26,7 @@ select
 from
   net_certificate
 where
-  domain = 'steampipe.io'
+  domain = 'steampipe.io';
 ```
 
 ### Check if the certificate is currently valid
@@ -41,5 +41,47 @@ from
 where
   domain = 'steampipe.io'
   and not_before < current_timestamp
-  and not_after > current_timestamp
+  and not_after > current_timestamp;
+```
+
+### Check if the certificate was revoked by the CA
+
+```sql
+select
+  domain,
+  not_before,
+  not_after
+from
+  net_certificate
+where
+  domain = 'steampipe.io'
+  and revoked;
+```
+
+### Check certificate revocation status with OCSP
+
+```sql
+select
+  domain,
+  ocsp ->> 'status' as revocation_status,
+  ocsp ->> 'revoked_at' as revoked_at
+from
+  net_certificate
+where
+  domain = 'steampipe.io';
+```
+
+### Check if certificate using insecure algorithm (e.g., MD2, MD5, SHA1)
+
+```sql
+select
+  domain,
+  not_before,
+  not_after,
+  signature_algorithm
+from
+  net_certificate
+where
+  domain = 'steampipe.io'
+  and signature_algorithm like any (array['%SHA1%', '%MD2%', '%MD5%']);
 ```

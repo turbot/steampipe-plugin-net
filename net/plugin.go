@@ -16,11 +16,12 @@ func Plugin(ctx context.Context) *plugin.Plugin {
 		},
 		DefaultTransform: transform.FromGo().NullIfZero(),
 		TableMap: map[string]*plugin.Table{
-			"net_certificate": tableNetCertificate(ctx),
-			"net_connection":  tableNetConnection(ctx),
-			"net_dns_record":  tableNetDNSRecord(ctx),
-			"net_dns_reverse": tableNetDNSReverse(ctx),
-			"net_web_request": tableNetWebRequest(),
+			"net_certificate":    tableNetCertificate(ctx),
+			"net_connection":     tableNetConnection(ctx),
+			"net_dns_record":     tableNetDNSRecord(ctx),
+			"net_dns_reverse":    tableNetDNSReverse(ctx),
+			"net_tls_connection": tableNetTLSConnection(ctx),
+			"net_web_request":    tableNetWebRequest(),
 		},
 	}
 	return p
