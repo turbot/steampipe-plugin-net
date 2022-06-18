@@ -146,7 +146,7 @@ func getTLSConnection(ctx context.Context, address string, protocol string, ciph
 
 	conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", address, &cfg)
 	if err != nil {
-		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "TLS connection failed: ", err)
+		plugin.Logger(ctx).Error("net_tls_connection.getTLSConnection", "TLS connection failed: ", err)
 		return nil, errors.New(err.Error())
 	}
 
@@ -172,7 +172,7 @@ func checkFallbackSCSVSupport(ctx context.Context, d *plugin.QueryData, h *plugi
 
 	conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", addr, &cfg)
 	if err != nil {
-		plugin.Logger(ctx).Error("net_certificate.checkFallbackSCSVSupport", "check_fallback_scsv_support", err)
+		plugin.Logger(ctx).Error("net_tls_connection.checkFallbackSCSVSupport", "check_fallback_scsv_support", err)
 		return false, nil
 	}
 
@@ -202,7 +202,7 @@ func checkAPLNSupport(ctx context.Context, d *plugin.QueryData, h *plugin.Hydrat
 
 	conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", addr, &cfg)
 	if err != nil {
-		plugin.Logger(ctx).Error("net_certificate.checkAPLNSupport", "check_tls_alpn_support", err)
+		plugin.Logger(ctx).Error("net_tls_connection.checkAPLNSupport", "check_tls_alpn_support", err)
 		return nil, err
 	}
 
