@@ -32,6 +32,7 @@ func tableNetDNSRecord(ctx context.Context) *plugin.Table {
 			{Name: "ip", Transform: transform.FromField("IP"), Type: proto.ColumnType_IPADDR, Description: "IP address for the record, such as for A records."},
 			{Name: "target", Type: proto.ColumnType_STRING, Description: "Target of the record, such as the target address for CNAME records."},
 			{Name: "priority", Type: proto.ColumnType_INT, Description: "Priority of the record, such as for MX records."},
+			{Name: "tag", Type: proto.ColumnType_STRING, Description: "An ASCII string that represents the identifier of the property represented by the record, such as for CAA records."},
 			{Name: "value", Type: proto.ColumnType_STRING, Description: "Value of the record, such as the text of a TXT record."},
 			{Name: "ttl", Transform: transform.FromField("TTL"), Type: proto.ColumnType_INT, Description: "Time To Live in seconds for the record in DNS cache."},
 			{Name: "serial", Type: proto.ColumnType_INT, Description: "Specifies the SOA serial number."},
@@ -51,6 +52,7 @@ type tableDNSRecordRow struct {
 	Target    string
 	TTL       uint32
 	Priority  uint16
+	Tag       string
 	Value     string
 	Serial    uint32
 	Minimum   uint32
@@ -62,7 +64,7 @@ type tableDNSRecordRow struct {
 func getTypeQuals(typeQualsWrapper *proto.Quals) []string {
 	if typeQualsWrapper == nil {
 		var allTypes []string
-		return append(allTypes, "A", "AAAA", "CERT", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT")
+		return append(allTypes, "A", "AAAA", "CAA", "CERT", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT")
 	}
 	var types []string
 	typeQuals := typeQualsWrapper.Quals[0].Value
@@ -82,6 +84,8 @@ func dnsTypeToDNSLibTypeEnum(recordType string) (uint16, error) {
 		return dns.TypeA, nil
 	case "AAAA":
 		return dns.TypeAAAA, nil
+	case "CAA":
+		return dns.TypeCAA, nil
 	case "CERT":
 		return dns.TypeCERT, nil
 	case "CNAME":
@@ -118,6 +122,14 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 			Type:   dnsType,
 			IP:     typedRecord.AAAA.String(),
 			TTL:    typedRecord.Hdr.Ttl,
+		})
+	case *dns.CAA:
+		records = append(records, tableDNSRecordRow{
+			Domain: domain,
+			Type:   dnsType,
+			TTL:    typedRecord.Hdr.Ttl,
+			Tag:    typedRecord.Tag,
+			Value:  typedRecord.Value,
 		})
 	case *dns.CERT:
 		records = append(records, tableDNSRecordRow{
@@ -220,10 +232,10 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 		dnsServer = GetConfigDNSServerAndPort(ctx, d)
 	}
 
-	logger.Trace("tableDNSRecordList", "Cols", queryCols)
-	logger.Trace("tableDNSRecordList", "Domain", domain)
-	logger.Trace("tableDNSRecordList", "Types", types)
-	logger.Trace("tableDNSRecordList", "DNS server", dnsServer)
+	logger.Debug("tableDNSRecordList", "Cols", queryCols)
+	logger.Debug("tableDNSRecordList", "Domain", domain)
+	logger.Debug("tableDNSRecordList", "Types", types)
+	logger.Debug("tableDNSRecordList", "DNS server", dnsServer)
 
 	for _, dnsType := range types {
 		dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
@@ -236,7 +248,12 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 			m := new(dns.Msg)
 			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
 			m.RecursionDesired = true
+
 			co, err := c.Dial(dnsServer)
+			if err != nil {
+				return nil, fmt.Errorf("unable to connect to the address: %v", err)
+			}
+
 			r, _, err := c.ExchangeWithConn(m, co)
 			if err != nil {
 				return nil, err
@@ -245,10 +262,10 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 				return nil, err
 			}
 
-			logger.Trace("tableDNSRecordList", "Question", r.Question)
-			logger.Trace("tableDNSRecordList", "Answer", r.Answer)
-			logger.Trace("tableDNSRecordList", "Extra", r.Extra)
-			logger.Trace("tableDNSRecordList", "NS", r.Ns)
+			logger.Debug("tableDNSRecordList", "Question", r.Question)
+			logger.Debug("tableDNSRecordList", "Answer", r.Answer)
+			logger.Debug("tableDNSRecordList", "Extra", r.Extra)
+			logger.Debug("tableDNSRecordList", "NS", r.Ns)
 
 			return r.Answer, nil
 		}

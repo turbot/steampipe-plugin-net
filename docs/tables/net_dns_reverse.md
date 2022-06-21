@@ -14,5 +14,5 @@ select
 from
   net_dns_reverse
 where
-  ip_address = '1.1.1.1'
+  ip_address = '1.1.1.1';
 ```

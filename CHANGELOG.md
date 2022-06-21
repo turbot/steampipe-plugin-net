@@ -1,3 +1,15 @@
+## v0.4.0 [2022-06-09]
+
+_What's new?_
+
+- New tables added: ([#35](https://github.com/turbot/steampipe-plugin-net/pull/35))
+  - [net_tls_connection](https://hub.steampipe.io/plugins/turbot/net/tables/net_tls_connection)
+
+_Enhancements_
+
+- Added `tag` column to `net_dns_record` table. ([#33](https://github.com/turbot/steampipe-plugin-net/pull/33))
+- Added `crl_distribution_points`, `issuer_name`, `ocsp`, `ocsp_servers`, `public_key_length`, `revoked`, and `transparent` columns to `net_certificate` table. ([#33](https://github.com/turbot/steampipe-plugin-net/pull/33))
+
 ## v0.3.0 [2022-04-28]
 
 _Enhancements_
