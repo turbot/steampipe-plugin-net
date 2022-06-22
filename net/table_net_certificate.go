@@ -280,8 +280,10 @@ func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h 
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve certificate transparency log: %v", err)
 	}
-	if resp.StatusCode == 502 {
-		return nil, fmt.Errorf("failed to complete the request for %s: %v. Please try again.", domainName, resp.Status)
+
+	statusOK := resp.StatusCode >= 200 && resp.StatusCode < 300
+	if !statusOK {
+		return nil, fmt.Errorf("failed to complete the request for %s: %v.", domainName, resp.Status)
 	}
 	defer resp.Body.Close()
 
