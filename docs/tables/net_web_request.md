@@ -50,7 +50,7 @@ from
   net_web_request
 where
   url = 'http://microsoft.com'
-  and request_headers = '{"authorization": "Basic YWxhZGRpbjpvcGVuc2VzYW2l", "accept": ["application/json, application/xml"]}';
+  and request_headers = '{"authorization": "Basic YWxhZGRpbjpvcGVuc2VzYW2l", "accept": ["application/json", "application/xml"]}';
 ```
 
 ### Check for HTTP Strict Transport Security (HSTS) protection
