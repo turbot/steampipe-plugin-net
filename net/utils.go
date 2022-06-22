@@ -39,9 +39,16 @@ func getAuthHeaderQuals(qualValue *proto.QualValue) (authHeader string, present 
 	return qualValue.GetStringValue(), true
 }
 
-func addRequestHeaders(request *http.Request, headers map[string]string) *http.Request {
+func addRequestHeaders(request *http.Request, headers map[string]interface{}) *http.Request {
 	for header, value := range headers {
-		request.Header.Add(header, value)
+		content, isArray := value.([]interface{})
+		if isArray {
+			for _, i := range content {
+				request.Header.Add(header, i.(string))
+			}
+		} else {
+			request.Header.Add(header, value.(string))
+		}
 	}
 	return request
 }
@@ -73,7 +80,7 @@ type baseRequestAttributes struct {
 	Url         string
 	Methods     []string
 	RequestBody string
-	Headers     map[string]string
+	Headers     map[string]interface{}
 }
 
 func removeInvalidUTF8Char(str string) string {

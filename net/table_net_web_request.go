@@ -46,7 +46,7 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 
 	var methods []string
 	var requestBody string
-	headers := make(map[string]string)
+	headers := make(map[string]interface{})
 
 	logger.Info("listBaseRequestAttributes", "Headers", headers)
 
@@ -64,7 +64,6 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	requestHeadersString := queryCols["request_headers"].GetJsonbValue()
 	logger.Info("listBaseRequestAttributes", "Headers String", requestHeadersString)
 
-	// TODO: How to handle headers with same key and different values? Use comma delimited?
 	if requestHeadersString != "" {
 		json.Unmarshal([]byte(requestHeadersString), &headers)
 	}
@@ -98,12 +97,6 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 	methods := baseRequestAttribute.Methods
 	headers := baseRequestAttribute.Headers
 	requestBody := baseRequestAttribute.RequestBody
-
-	// TODO: Should this be an argument? Default to false (secure by default)?
-	//tr := &http.Transport{
-	//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	//}
-	//client := &http.Client{Transport: tr}
 	client := &http.Client{}
 
 	// Set true to follow the redirects
@@ -153,8 +146,6 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 			continue
 		}
 
-		// req.Proto = "HTTP/2"
-
 		req = addRequestHeaders(req, headers)
 		logger.Info("Request:", req)
 
@@ -194,9 +185,7 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 			item.ResponseBody = body
 		}
 
-		// // TODO: Can we show the full redirect res chain?
-		// // TODO: What cert info do we get?
-		// // Generate table row item
+		// Generate table row item
 		d.StreamListItem(ctx, item)
 	}
 
