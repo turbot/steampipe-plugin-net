@@ -318,13 +318,13 @@ func getRevocationInformation(ctx context.Context, d *plugin.QueryData, h *plugi
 	// Check Certificate Revocation List (CRL) to verify certificate revocation status
 	isRevokedByCAOrOwner, err := isCertificateRevokedByCA(ctx, data.CRLDistributionPoints, data.SerialNumber)
 	if err != nil {
-		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "error getting revocation information from CRL", err)
+		plugin.Logger(ctx).Error("net_certificate.getRevocationInformation", "error getting revocation information from CRL", err)
 	}
 
 	// Check Online Certificate Status Protocol (OCSP) to verify certificate revocation status
 	ocspCertificateRevocationInfo, err := fetchOCSPDetails(ctx, data)
 	if err != nil {
-		plugin.Logger(ctx).Error("net_certificate.getCertificateTransparencyLogs", "error getting revocation information from OCSP server", err)
+		plugin.Logger(ctx).Error("net_certificate.getRevocationInformation", "error getting revocation information from OCSP server", err)
 	}
 
 	if ocspCertificateRevocationInfo != nil {
@@ -332,7 +332,7 @@ func getRevocationInformation(ctx context.Context, d *plugin.QueryData, h *plugi
 	}
 
 	if isRevokedByCAOrOwner == nil && ocspCertificateRevocationInfo == nil {
-		return nil, errors.New("unable to retrieve certificate revocation information")
+		return nil, errors.New("failed to retrieve certificate revocation information")
 	}
 
 	isRevoked := false
