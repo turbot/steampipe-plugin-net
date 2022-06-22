@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -65,7 +66,11 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	logger.Info("listBaseRequestAttributes", "Headers String", requestHeadersString)
 
 	if requestHeadersString != "" {
-		json.Unmarshal([]byte(requestHeadersString), &headers)
+		err := json.Unmarshal([]byte(requestHeadersString), &headers)
+		if err != nil {
+			plugin.Logger(ctx).Error("net_web_request.listBaseRequestAttributes", "unmarshal_error", err)
+			return nil, fmt.Errorf("failed to unmarshal request headers: %v", err)
+		}
 	}
 
 	for k, v := range headers {
