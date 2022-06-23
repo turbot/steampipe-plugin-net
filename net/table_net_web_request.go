@@ -13,16 +13,16 @@ import (
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin/transform"
 )
 
-func tableNetWebRequest() *plugin.Table {
+func tableNetHTTPRequest() *plugin.Table {
 	return &plugin.Table{
-		Name: "net_web_request",
+		Name: "net_http_request",
 		List: &plugin.ListConfig{
 			ParentHydrate: listBaseRequestAttributes,
 			Hydrate:       listRequestResponses,
 			KeyColumns: plugin.KeyColumnSlice{
 				{Name: "url", Require: plugin.Required},
-				{Name: "method", Require: plugin.Optional},
-				{Name: "follow_redirects", Require: plugin.Optional, Operators: []string{"=", "<>"}},
+				{Name: "method", Require: plugin.Optional, CacheMatch: "exact"},
+				{Name: "follow_redirects", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: "exact"},
 				{Name: "request_headers", Require: plugin.Optional, CacheMatch: "exact"},
 				{Name: "request_body", Require: plugin.Optional, CacheMatch: "exact"},
 			},
@@ -68,7 +68,7 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	if requestHeadersString != "" {
 		err := json.Unmarshal([]byte(requestHeadersString), &headers)
 		if err != nil {
-			plugin.Logger(ctx).Error("net_web_request.listBaseRequestAttributes", "unmarshal_error", err)
+			plugin.Logger(ctx).Error("net_http_request.listBaseRequestAttributes", "unmarshal_error", err)
 			return nil, fmt.Errorf("failed to unmarshal request headers: %v", err)
 		}
 	}
