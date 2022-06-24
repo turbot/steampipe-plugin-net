@@ -1,9 +1,21 @@
+## v0.5.0 [2022-06-24]
+
+_What's new?_
+
+- New tables added:
+  - [net_http_request](https://hub.steampipe.io/plugins/turbot/net/tables/net_http_request) ([#38](https://github.com/turbot/steampipe-plugin-net/pull/38))
+
+_Enhancements_
+
+- Updated the `net_certificate` table to return an error for any non-200 response status codes. ([#37](https://github.com/turbot/steampipe-plugin-net/pull/37))
+- Recompiled plugin with [steampipe-plugin-sdk v3.3.0](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v330--2022-6-22). ([#38](https://github.com/turbot/steampipe-plugin-net/pull/38))
+
 ## v0.4.0 [2022-06-09]
 
 _What's new?_
 
-- New tables added: ([#35](https://github.com/turbot/steampipe-plugin-net/pull/35))
-  - [net_tls_connection](https://hub.steampipe.io/plugins/turbot/net/tables/net_tls_connection)
+- New tables added:
+  - [net_tls_connection](https://hub.steampipe.io/plugins/turbot/net/tables/net_tls_connection) ([#35](https://github.com/turbot/steampipe-plugin-net/pull/35))
 
 _Enhancements_
 
