@@ -50,7 +50,29 @@ from
   net_http_request
 where
   url = 'http://microsoft.com'
-  and request_headers = '{"authorization": "Basic YWxhZGRpbjpvcGVuc2VzYW2l", "accept": ["application/json", "application/xml"]}';
+  and request_headers = jsonb_object(
+    '{authorization, accept}',
+    '{Basic YWxhZGRpbjpvcGVuc2VzYW1l, application/json}'
+  );
+```
+
+### HTTP request contains multiple HTTP headers with the same name
+
+```sql
+select
+  url,
+  method,
+  response_status_code,
+  jsonb_pretty(request_headers),
+  response_body
+from
+  net_http_request
+where
+  url = 'http://microsoft.com'
+  and request_headers = '{
+    "authorization": "Basic YWxhZGRpbjpvcGVuc2VzYW2l",
+    "accept": ["application/json", "application/xml"]
+  }'::jsonb;
 ```
 
 ### Check for HTTP Strict Transport Security (HSTS) protection

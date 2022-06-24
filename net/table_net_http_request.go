@@ -14,6 +14,7 @@ import (
 )
 
 //// TABLE DEFINITION
+
 func tableNetHTTPRequest() *plugin.Table {
 	return &plugin.Table{
 		Name:        "net_http_request",
