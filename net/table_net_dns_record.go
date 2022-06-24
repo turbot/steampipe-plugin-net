@@ -270,7 +270,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 			return r.Answer, nil
 		}
 
-		listRecordSetResponse, err := plugin.RetryHydrate(ctx, d, h, listRecordSet, &plugin.RetryConfig{ShouldRetryError: shouldRetryError})
+		listRecordSetResponse, err := retryHydrate(ctx, d, h, listRecordSet)
 		if err != nil {
 			return nil, err
 		}
