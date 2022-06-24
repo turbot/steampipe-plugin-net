@@ -54,13 +54,11 @@ func addRequestHeaders(request *http.Request, headers map[string]interface{}) *h
 }
 
 type tableNetWebRequestRow struct {
-	Url             string
-	Method          string
-	RequestBody     string
-	RequestHeaders  string
-	FollowRedirects bool
-	//RequestHeaderAuthorization         string
-	//RequestHeaderContentType           string
+	Url                                string
+	Method                             string
+	RequestBody                        string
+	RequestHeaders                     string
+	FollowRedirects                    bool
 	Status                             int
 	ResponseStatusCode                 int
 	ResponseHeaders                    map[string][]string

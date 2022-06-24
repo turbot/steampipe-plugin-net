@@ -54,8 +54,8 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	queryCols := d.KeyColumnQuals
 
 	urls := getQuals(queryCols["url"])
-	logger.Info("listBaseRequestAttributes", "URLs", urls)
-	logger.Info("listBaseRequestAttributes", "Query cols", queryCols)
+	logger.Debug("listBaseRequestAttributes", "urls", urls)
+	logger.Debug("listBaseRequestAttributes", "query cols", queryCols)
 	if queryCols["method"] != nil {
 		methods = getQuals(queryCols["method"])
 	} else {
@@ -63,7 +63,7 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	}
 
 	requestHeadersString := queryCols["request_headers"].GetJsonbValue()
-	logger.Info("listBaseRequestAttributes", "Headers String", requestHeadersString)
+	logger.Debug("listBaseRequestAttributes", "request headers", requestHeadersString)
 
 	if requestHeadersString != "" {
 		err := json.Unmarshal([]byte(requestHeadersString), &headers)
@@ -74,16 +74,16 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	}
 
 	for k, v := range headers {
-		logger.Info("listBaseRequestAttributes", "Header", k, v)
+		logger.Debug("listBaseRequestAttributes", "header", k, v)
 	}
 
 	if requestBodyData, present := getAuthHeaderQuals(queryCols["request_body"]); present {
 		requestBody = requestBodyData
 	}
 
-	logger.Info("listBaseRequestAttributes", "URLs", urls)
-	logger.Info("listBaseRequestAttributes", "Methods", methods)
-	logger.Info("listBaseRequestAttributes", "Headers", headers)
+	logger.Debug("listBaseRequestAttributes", "urls", urls)
+	logger.Debug("listBaseRequestAttributes", "methods", methods)
+	logger.Debug("listBaseRequestAttributes", "headers", headers)
 
 	for _, url := range urls {
 		d.StreamListItem(ctx, baseRequestAttributes{url, methods, requestBody, headers})
@@ -96,7 +96,7 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 	logger := plugin.Logger(ctx)
 	baseRequestAttribute := h.Item.(baseRequestAttributes)
 
-	logger.Info("listRequestResponses", "Attributes", baseRequestAttribute)
+	logger.Debug("listRequestResponses", "attributes", baseRequestAttribute)
 
 	url := baseRequestAttribute.Url
 	methods := baseRequestAttribute.Methods
@@ -147,12 +147,12 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 				return nil, err
 			}
 		default:
-			logger.Warn("Unsupported method", method)
+			logger.Warn("listRequestResponses", "unsupported method", method)
 			continue
 		}
 
 		req = addRequestHeaders(req, headers)
-		logger.Info("Request:", req)
+		logger.Debug("listRequestResponses", "request", req)
 
 		item := tableNetWebRequestRow{
 			Url:             url,
