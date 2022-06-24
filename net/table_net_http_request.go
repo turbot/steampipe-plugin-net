@@ -49,8 +49,6 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	var requestBody string
 	headers := make(map[string]interface{})
 
-	logger.Info("listBaseRequestAttributes", "Headers", headers)
-
 	queryCols := d.KeyColumnQuals
 
 	urls := getQuals(queryCols["url"])
@@ -180,10 +178,6 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 			// Close response reading
 			res.Body.Close()
 			body := removeInvalidUTF8Char(buf.String())
-
-			queryCols := d.KeyColumnQuals
-			requestHeadersString := queryCols["request_headers"].GetStringValue()
-			logger.Info("listRequestResponses", "Headers String", requestHeadersString)
 
 			item.ResponseStatusCode = res.StatusCode
 			item.ResponseHeaders = res.Header
