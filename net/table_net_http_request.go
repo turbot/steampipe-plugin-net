@@ -13,9 +13,11 @@ import (
 	"github.com/turbot/steampipe-plugin-sdk/v3/plugin/transform"
 )
 
+//// TABLE DEFINITION
 func tableNetHTTPRequest() *plugin.Table {
 	return &plugin.Table{
-		Name: "net_http_request",
+		Name:        "net_http_request",
+		Description: "An HTTP request is made by a client, to a named host, which is located on a server.",
 		List: &plugin.ListConfig{
 			ParentHydrate: listBaseRequestAttributes,
 			Hydrate:       listRequestResponses,
@@ -35,7 +37,6 @@ func tableNetHTTPRequest() *plugin.Table {
 			{Name: "request_headers", Type: proto.ColumnType_JSON, Transform: transform.FromQual("request_headers"), Description: "A map of headers passed in the request."},
 			{Name: "response_status_code", Type: proto.ColumnType_INT, Description: "HTTP status code is a server response to a browser's request."},
 			{Name: "response_body", Type: proto.ColumnType_STRING, Description: "Represents the response body."},
-			// TODO: Does it need response_? What is this?
 			{Name: "response_error", Type: proto.ColumnType_STRING, Description: "Represents an error or failure, either from a non-successful HTTP status, an error while executing the request, or some other failure which occurred during the parsing of the response.", Transform: transform.FromField("Error")},
 			{Name: "response_headers", Type: proto.ColumnType_JSON, Description: "A map of response headers used by web applications to configure security defenses in web browsers."},
 		},
