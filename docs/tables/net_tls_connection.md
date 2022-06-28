@@ -1,8 +1,8 @@
 # Table: net_tls_connection
 
-Test TLS connection to the given network address (e.g. steampipe.io:443) by initiating a TLS handshake. This table checks connection for all possible TLS protocol-cipher combination and returns the combinations for which a TLS connection could be established.
+Test a TLS connection to the given network address (e.g., steampipe.io:443) by initiating a TLS handshake. This table checks connections for all possible TLS protocol-cipher combinations and returns the combinations for which a TLS connection could be established.
 
-Note: An `address` of the format domain:port (e.g. steampipe.io:443) must be provided.
+Note: An `address` of the format domain:port (e.g., steampipe.io:443) must be provided.
 
 You can also provide a protocol version and/or cipher suite to verify specific TLS connection requirements. For example:
 
@@ -17,8 +17,7 @@ where
   and cipher_suite_name = 'TLS_AES_128_GCM_SHA256';
 ```
 
-Note:
-
+Notes:
 - SSL protocols (e.g. SSL v3 and SSL v2) are not supported by this table.
 - This table supports a limited set of cipher suites, as defined by the [TLS package](https://pkg.go.dev/crypto/tls#pkg-constants).
 
