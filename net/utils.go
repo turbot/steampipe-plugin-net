@@ -183,15 +183,19 @@ func cipherSuiteIsSupported(protocol string, cipher string) bool {
 func retryHydrate(ctx context.Context, d *plugin.QueryData, hydrateData *plugin.HydrateData, hydrateFunc plugin.HydrateFunc) (interface{}, error) {
 
 	// Retry configs
-	retryMode := "Fibonacci"
 	maxRetries := 10
-	interval := 500
+	interval := time.Duration(500)
 
 	// Create the backoff based on the given mode
-	backoff, err := checkRetryMode(retryMode, time.Duration(interval))
+	backoff, err := retry.NewFibonacci(interval * time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
+
+	// Ensure the maximum value is 2.5s. In this scenario, the sleep values would be
+	// 0.5s, 0.5s, 1s, 1.5s, 2.5s, 2.5s, 2.5s...
+	backoff = retry.WithCappedDuration(2500*time.Millisecond, backoff)
+
 	var hydrateResult interface{}
 
 	err = retry.Do(ctx, retry.WithMaxRetries(uint64(maxRetries), backoff), func(ctx context.Context) error {
@@ -205,28 +209,4 @@ func retryHydrate(ctx context.Context, d *plugin.QueryData, hydrateData *plugin.
 	})
 
 	return hydrateResult, err
-}
-
-func checkRetryMode(mode string, interval time.Duration) (retry.Backoff, error) {
-	switch mode {
-	case "Fibonacci":
-		backoff, err := retry.NewFibonacci(interval * time.Millisecond)
-		if err != nil {
-			return nil, err
-		}
-		return backoff, nil
-	case "Exponential":
-		backoff, err := retry.NewExponential(interval * time.Millisecond)
-		if err != nil {
-			return nil, err
-		}
-		return backoff, nil
-	case "Constant":
-		backoff, err := retry.NewConstant(interval * time.Millisecond)
-		if err != nil {
-			return nil, err
-		}
-		return backoff, nil
-	}
-	return nil, nil
 }
