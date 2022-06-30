@@ -1,3 +1,10 @@
+## v0.6.0 [2022-06-30]
+
+_Enhancements_
+
+- Improved the backoff/retry mechanism in the `net_dns_record` table to return results faster and more reliably. ([#32](https://github.com/turbot/steampipe-plugin-net/pull/32))
+- Recompiled plugin with [miekg/dns v1.1.50](https://github.com/miekg/dns/releases/tag/v1.1.50). ([#32](https://github.com/turbot/steampipe-plugin-net/pull/32))
+
 ## v0.5.0 [2022-06-24]
 
 _What's new?_
