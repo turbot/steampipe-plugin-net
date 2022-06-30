@@ -200,7 +200,7 @@ func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRo
 	return records
 }
 
-func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.HydrateData) (interface{}, error) {
+func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
 	logger := plugin.Logger(ctx)
 
 	queryCols := d.QueryContext.Columns
@@ -232,10 +232,10 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 		dnsServer = GetConfigDNSServerAndPort(ctx, d)
 	}
 
-	logger.Trace("tableDNSRecordList", "Cols", queryCols)
-	logger.Trace("tableDNSRecordList", "Domain", domain)
-	logger.Trace("tableDNSRecordList", "Types", types)
-	logger.Trace("tableDNSRecordList", "DNS server", dnsServer)
+	logger.Debug("tableDNSRecordList", "Cols", queryCols)
+	logger.Debug("tableDNSRecordList", "Domain", domain)
+	logger.Debug("tableDNSRecordList", "Types", types)
+	logger.Debug("tableDNSRecordList", "DNS server", dnsServer)
 
 	for _, dnsType := range types {
 		dnsTypeEnumVal, err := dnsTypeToDNSLibTypeEnum(dnsType)
@@ -244,29 +244,43 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, _ *plugin.Hydr
 			continue
 		}
 
-		m := new(dns.Msg)
-		m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
-		m.RecursionDesired = true
+		listRecordSet := func(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+			m := new(dns.Msg)
+			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
+			m.RecursionDesired = true
 
-		co, err := c.Dial(dnsServer)
-		if err != nil {
-			return nil, fmt.Errorf("unable to connect to the address: %v", err)
+			co, err := c.Dial(dnsServer)
+			if err != nil {
+				return nil, fmt.Errorf("unable to connect to the address: %v", err)
+			}
+
+			r, _, err := c.ExchangeWithConn(m, co)
+			if err != nil {
+				return nil, err
+			}
+			if r.Rcode != dns.RcodeSuccess {
+				return nil, err
+			}
+
+			logger.Debug("tableDNSRecordList", "Question", r.Question)
+			logger.Debug("tableDNSRecordList", "Answer", r.Answer)
+			logger.Debug("tableDNSRecordList", "Extra", r.Extra)
+			logger.Debug("tableDNSRecordList", "NS", r.Ns)
+
+			return r.Answer, nil
 		}
 
-		r, _, err := c.ExchangeWithConn(m, co)
+		listRecordSetResponse, err := retryHydrate(ctx, d, h, listRecordSet)
 		if err != nil {
 			return nil, err
 		}
-		if r.Rcode != dns.RcodeSuccess {
-			return nil, err
+
+		var listResponse []dns.RR
+		if listRecordSetResponse != nil {
+			listResponse = listRecordSetResponse.([]dns.RR)
 		}
 
-		logger.Trace("tableDNSRecordList", "Question", r.Question)
-		logger.Trace("tableDNSRecordList", "Answer", r.Answer)
-		logger.Trace("tableDNSRecordList", "Extra", r.Extra)
-		logger.Trace("tableDNSRecordList", "NS", r.Ns)
-
-		for _, answer := range r.Answer {
+		for _, answer := range listResponse {
 			for _, record := range getRecords(domain, dnsType, answer) {
 				logger.Trace("tableDNSRecordList", "Record", record)
 				d.StreamListItem(ctx, record)
