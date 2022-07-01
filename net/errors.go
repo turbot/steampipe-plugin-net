@@ -1,12 +1,17 @@
 package net
 
-import "strings"
+import (
+	"context"
 
-func shouldRetryError(err error) bool {
-	if err != nil {
-		if strings.Contains(err.Error(), "i/o timeout") {
+	"github.com/turbot/steampipe-plugin-sdk/v3/plugin"
+)
+
+func shouldRetryError() plugin.ErrorPredicateWithContext {
+	return func(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData, err error) bool {
+		if err != nil {
+			panic(d.Table.Name)
 			return true
 		}
+		return false
 	}
-	return false
 }

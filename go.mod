@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/miekg/dns v1.1.50
-	github.com/sethvargo/go-retry v0.1.0
 	github.com/turbot/steampipe-plugin-sdk/v3 v3.3.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/exp v0.0.0-20220602145555-4a0574d9293f
@@ -43,6 +42,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/sethvargo/go-retry v0.1.0 // indirect
 	github.com/stevenle/topsort v0.0.0-20130922064739-8130c1d7596b // indirect
 	github.com/tkrajina/go-reflector v0.5.4 // indirect
 	github.com/turbot/go-kit v0.4.0 // indirect

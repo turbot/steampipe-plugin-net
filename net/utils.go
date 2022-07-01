@@ -4,14 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
-	"time"
 	"unicode/utf8"
 
 	"golang.org/x/exp/slices"
 
-	"github.com/sethvargo/go-retry"
 	"github.com/turbot/steampipe-plugin-sdk/v3/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v3/plugin"
 )
 
 func getQuals(qualValue *proto.QualValue) []string {
@@ -179,34 +176,34 @@ func cipherSuiteIsSupported(protocol string, cipher string) bool {
 	return false
 }
 
-// Invokes the hydrate function with retryable errors and retries the function until the maximum attempts before throwing error
-func retryHydrate(ctx context.Context, d *plugin.QueryData, hydrateData *plugin.HydrateData, hydrateFunc plugin.HydrateFunc) (interface{}, error) {
+// // Invokes the hydrate function with retryable errors and retries the function until the maximum attempts before throwing error
+// func retryHydrate(ctx context.Context, d *plugin.QueryData, hydrateData *plugin.HydrateData, hydrateFunc plugin.HydrateFunc) (interface{}, error) {
 
-	// Retry configs
-	maxRetries := 10
-	interval := time.Duration(500)
+// 	// Retry configs
+// 	maxRetries := 10
+// 	interval := time.Duration(500)
 
-	// Create the backoff based on the given mode
-	backoff, err := retry.NewFibonacci(interval * time.Millisecond)
-	if err != nil {
-		return nil, err
-	}
+// 	// Create the backoff based on the given mode
+// 	backoff, err := retry.NewFibonacci(interval * time.Millisecond)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// Ensure the maximum value is 2.5s. In this scenario, the sleep values would be
-	// 0.5s, 0.5s, 1s, 1.5s, 2.5s, 2.5s, 2.5s...
-	backoff = retry.WithCappedDuration(2500*time.Millisecond, backoff)
+// 	// Ensure the maximum value is 2.5s. In this scenario, the sleep values would be
+// 	// 0.5s, 0.5s, 1s, 1.5s, 2.5s, 2.5s, 2.5s...
+// 	backoff = retry.WithCappedDuration(2500*time.Millisecond, backoff)
 
-	var hydrateResult interface{}
+// 	var hydrateResult interface{}
 
-	err = retry.Do(ctx, retry.WithMaxRetries(uint64(maxRetries), backoff), func(ctx context.Context) error {
-		hydrateResult, err = hydrateFunc(ctx, d, hydrateData)
-		if err != nil {
-			if shouldRetryError(err) {
-				err = retry.RetryableError(err)
-			}
-		}
-		return err
-	})
+// 	err = retry.Do(ctx, retry.WithMaxRetries(uint64(maxRetries), backoff), func(ctx context.Context) error {
+// 		hydrateResult, err = hydrateFunc(ctx, d, hydrateData)
+// 		if err != nil {
+// 			if shouldRetryError(err) {
+// 				err = retry.RetryableError(err)
+// 			}
+// 		}
+// 		return err
+// 	})
 
-	return hydrateResult, err
-}
+// 	return hydrateResult, err
+// }
