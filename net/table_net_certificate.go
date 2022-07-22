@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ocsp"
@@ -142,16 +143,27 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		InsecureSkipVerify: true,
 	}
 
+	tcpConnectionCreated := false
 	addr := net.JoinHostPort(dn, "443")
 	dialer := &net.Dialer{
 		Timeout: time.Duration(3) * time.Second, // short, certificates should be fast
+		Control: func(network, address string, c syscall.RawConn) error { // This gets called once the TCP connection gets opened before handshake
+			tcpConnectionCreated = true
+			return nil
+		},
 	}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &cfg)
 	if err != nil {
+		if tcpConnectionCreated {
+			plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "failed to perform TLS handshake: ", err)
+			return nil, nil
+		}
 		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "TLS connection failed: ", err)
 		return nil, errors.New("TLS connection failed: " + err.Error())
 	}
+	defer conn.Close()
+
 	items := conn.ConnectionState().PeerCertificates
 
 	// Should not happen. If it does, then assume the cert was not found.
