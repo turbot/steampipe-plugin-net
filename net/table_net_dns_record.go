@@ -103,7 +103,7 @@ func dnsTypeToDNSLibTypeEnum(recordType string) (uint16, error) {
 	case "TXT":
 		return dns.TypeTXT, nil
 	}
-	return dns.TypeANY, fmt.Errorf("Unsupported DNS record type: %s", recordType)
+	return dns.TypeANY, fmt.Errorf("unsupported DNS record type: %s", recordType)
 }
 
 func getRecords(domain string, dnsType string, answer dns.RR) []tableDNSRecordRow {

@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"syscall"
@@ -295,7 +294,7 @@ func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h 
 
 	statusOK := resp.StatusCode >= 200 && resp.StatusCode < 300
 	if !statusOK {
-		return nil, fmt.Errorf("failed to complete the request for %s: %v.", domainName, resp.Status)
+		return nil, fmt.Errorf("failed to complete the request for %s: %v", domainName, resp.Status)
 	}
 	defer resp.Body.Close()
 
@@ -472,7 +471,7 @@ func fetchCRL(url string) (*pkix.CertificateList, error) {
 		return nil, errors.New("failed to retrieve CRL")
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
