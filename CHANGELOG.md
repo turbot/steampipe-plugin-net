@@ -1,3 +1,13 @@
+## v0.7.0 [2022-08-17]
+
+_Bug fixes_
+
+- Fixed the `net_certificate` table to return an empty row instead of an error if the domain does not have an SSL certificate. ([#42](https://github.com/turbot/steampipe-plugin-net/pull/42))
+
+_Dependencies_
+
+- Recompiled plugin with [steampipe-plugin-sdk v3.3.2](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v332--2022-07-11) which includes several caching fixes. ([#39](https://github.com/turbot/steampipe-plugin-net/pull/39))
+
 ## v0.6.0 [2022-06-30]
 
 _Enhancements_
