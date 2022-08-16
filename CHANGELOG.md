@@ -2,7 +2,7 @@
 
 _Bug fixes_
 
-- Fixed the `net_certificate` table to return an empty row instead of an error if the domain did not have an SSL certificate. ([#42](https://github.com/turbot/steampipe-plugin-net/pull/42))
+- Fixed the `net_certificate` table to return an empty row instead of an error if the domain does not have an SSL certificate. ([#42](https://github.com/turbot/steampipe-plugin-net/pull/42))
 
 _Dependencies_
 
