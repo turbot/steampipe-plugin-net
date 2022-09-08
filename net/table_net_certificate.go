@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"syscall"
@@ -472,7 +471,7 @@ func fetchCRL(url string) (*pkix.CertificateList, error) {
 		return nil, errors.New("failed to retrieve CRL")
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
