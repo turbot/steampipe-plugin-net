@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strings"
 	"syscall"
 	"time"
 
@@ -159,7 +160,11 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 			plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "failed to perform TLS handshake:", err)
 			return nil, nil
 		}
+		if strings.HasSuffix(err.Error(), ": no such host") {
+			return nil, nil
+		}
 		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "TLS connection failed:", err)
+
 		return nil, errors.New("TLS connection failed: " + err.Error())
 	}
 	defer conn.Close()
