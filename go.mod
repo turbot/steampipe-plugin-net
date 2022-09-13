@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/miekg/dns v1.1.50
 	github.com/sethvargo/go-retry v0.1.0
-	github.com/turbot/steampipe-plugin-sdk/v4 v4.1.6
+	github.com/turbot/steampipe-plugin-sdk/v4 v4.1.7
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/exp v0.0.0-20220602145555-4a0574d9293f
 )
