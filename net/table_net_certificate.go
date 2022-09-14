@@ -135,7 +135,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		InsecureSkipVerify: true,
 	}
 
-	// Use address column first and fallback to domain column
+	// Use `address` column first and fall back to `domain` column
 	addr := d.KeyColumnQualString("address")
 	dn := d.KeyColumnQualString("domain")
 	if addr == "" {
