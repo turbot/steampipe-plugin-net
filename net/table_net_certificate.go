@@ -16,7 +16,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -40,16 +39,13 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 		Name:        "net_certificate",
 		Description: "Certificate details for a domain.",
 		List: &plugin.ListConfig{
-			Hydrate: tableNetCertificateList,
-			KeyColumns: plugin.KeyColumnSlice{
-				{Name: "domain", Require: plugin.Required, Operators: []string{"="}},
-				{Name: "port", Require: plugin.Optional, Operators: []string{"="}, CacheMatch: "exact"},
-			},
+			Hydrate:    tableNetCertificateList,
+			KeyColumns: plugin.AnyColumn([]string{"domain", "address"}),
 		},
 		Columns: []*plugin.Column{
 			// Top columns
-			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name the certificate represents."},
-			{Name: "port", Type: proto.ColumnType_INT, Description: "Port to connect on. Defaults to 443."},
+			{Name: "domain", Type: proto.ColumnType_STRING, Description: "[DEPRECATED] This column has been deprecated and will be removed in a future release, use address instead. Domain name the certificate represents."},
+			{Name: "address", Type: proto.ColumnType_STRING, Description: "Address to connect to, as specified in https://golang.org/pkg/net/#Dial.", Transform: transform.FromQual("address")},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
 			{Name: "revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "True if the certificate was revoked."},
@@ -87,7 +83,6 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 type tableNetCertificateRow struct {
 	// Common
 	Domain     string    `json:"domain,omitempty"`
-	Port       string    `json:"port,omitempty"`
 	CommonName string    `json:"common_name,omitempty"`
 	NotAfter   time.Time `json:"not_after,omitempty"`
 	// Other
@@ -134,26 +129,20 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 	plugin.Logger(ctx).Trace("tableNetCertificateList")
 
-	// You must pass 1 or more domain quals to the query
-	if d.KeyColumnQuals["domain"] == nil {
-		plugin.Logger(ctx).Trace("tableDNSRecordList", "No domain quals provided")
-		return nil, nil
-	}
-	dn := d.KeyColumnQualString("domain")
-
 	// Create TLS config
 	cfg := tls.Config{
 		Rand:               rand.Reader,
 		InsecureSkipVerify: true,
 	}
 
-	port := "443"
-	if d.KeyColumnQuals["port"] != nil {
-		port = strconv.FormatInt(d.KeyColumnQuals["port"].GetInt64Value(), 10)
+	// Use address column first and fallback to domain column
+	addr := d.KeyColumnQualString("address")
+	dn := d.KeyColumnQualString("domain")
+	if addr == "" {
+		addr = net.JoinHostPort(dn, "443")
 	}
 
 	tcpConnectionCreated := false
-	addr := net.JoinHostPort(dn, port)
 	dialer := &net.Dialer{
 		Timeout: time.Duration(3) * time.Second, // short, certificates should be fast
 		Control: func(network, address string, c syscall.RawConn) error { // This gets called once the TCP connection gets opened before handshake
@@ -264,7 +253,6 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	// The primary certificate in the request has extra details we can pull
 	// out from the request. Add those now.
 	item.Domain = dn
-	item.Port = port
 	host, _, err := net.SplitHostPort(conn.RemoteAddr().String())
 	if err != nil {
 		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "error retrieving host from network address", err)
