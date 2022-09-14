@@ -6,7 +6,7 @@ Note: A `domain` must be provided in all queries to this table.
 
 ## Examples
 
-### Certificate information
+### Basic info
 
 ```sql
 select
@@ -17,12 +17,12 @@ where
   domain = 'steampipe.io';
 ```
 
-### Time until the certificate expires
+### Get time until the certificate expires
 
 ```sql
 select
   domain,
-  AGE(not_after, current_timestamp) as time_until_expiration
+  age(not_after, current_timestamp) as time_until_expiration
 from
   net_certificate
 where
@@ -84,4 +84,18 @@ from
 where
   domain = 'steampipe.io'
   and signature_algorithm like any (array['%SHA1%', '%MD2%', '%MD5%']);
+```
+
+### Get certificate on a specific port
+
+```sql
+select
+  domain,
+  port,
+  signature_algorithm
+from
+  net_certificate
+where
+  domain = 'internaldomain.com'
+  and port = 8443;
 ```
