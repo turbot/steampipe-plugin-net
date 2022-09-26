@@ -160,14 +160,14 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 			return nil, nil
 		}
 		// Return nil, if the given host couldn't be found
-        	if opErr, ok := err.(*net.OpError); ok {
-		        if dnsError, isDnsError := opErr.Err.(*net.DNSError); isDnsError {
-			        if dnsError.IsNotFound {
-				        plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "failed to find the host:", err)
-				        return nil, nil
-			        }
-		        }
-        	}
+		if opErr, ok := err.(*net.OpError); ok {
+			if dnsError, isDnsError := opErr.Err.(*net.DNSError); isDnsError {
+				if dnsError.IsNotFound {
+					plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "failed to find the host:", err)
+					return nil, nil
+				}
+			}
+		}
 		plugin.Logger(ctx).Error("net_certificate.tableNetCertificateList", "TLS connection failed:", err)
 
 		return nil, errors.New("TLS connection failed: " + err.Error())
