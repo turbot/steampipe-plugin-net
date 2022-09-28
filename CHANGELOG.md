@@ -1,3 +1,14 @@
+## v0.8.0 [2022-09-28]
+
+_Bug fixes_
+
+- Fixed the `net_certificate` table to return `null` instead of an error when the queried host doesn't exist in a DNS. ([#49](https://github.com/turbot/steampipe-plugin-net/pull/49))
+
+_Dependencies_
+
+- Recompiled plugin with [steampipe-plugin-sdk v4.1.7](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v417-2022-09-08) which includes several caching and memory management improvements. ([#46](https://github.com/turbot/steampipe-plugin-net/pull/46))
+- Recompiled plugin with Go version `1.19`. ([#46](https://github.com/turbot/steampipe-plugin-net/pull/46))
+
 ## v0.7.0 [2022-08-17]
 
 _Bug fixes_
