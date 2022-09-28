@@ -2,7 +2,7 @@
 
 _Bug fixes_
 
-- Fixed the `net_certificate` table to return `null` instead of an error when the queried host doesn't exist in a DNS. ([#49](https://github.com/turbot/steampipe-plugin-net/pull/49))
+- Fixed the `net_certificate` table to return `null` instead of an error when the queried host doesn't exist in a DNS. ([#49](https://github.com/turbot/steampipe-plugin-net/pull/49)) (Thanks [@bdd4329](https://github.com/bdd4329) for the contribution!)
 
 _Dependencies_
 
