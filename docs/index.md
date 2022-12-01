@@ -21,7 +21,7 @@ For example:
 ```sql
 select
   issuer, 
-  not_before as exp_date 
+  not_after as exp_date 
 from 
   net_certificate
 where
