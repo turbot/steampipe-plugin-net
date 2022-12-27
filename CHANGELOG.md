@@ -1,3 +1,14 @@
+## v0.8.1 [2022-12-27]
+
+_Bug fixes_
+
+- Fixed the example query in `docs/index.md` to correctly check the expiry date of certificates associated with websites. ([#53](https://github.com/turbot/steampipe-plugin-net/pull/53)) (Thanks [@pdecat](https://github.com/pdecat) for the contribution!)
+- Fixed the typo in the example query of `net_connection` table document. ([#54](https://github.com/turbot/steampipe-plugin-net/pull/54)) (Thanks [@muescha](https://github.com/muescha) for the contribution!)
+
+_Dependencies_
+
+- Recompiled plugin with [steampipe-plugin-sdk v4.1.8](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v418-2022-09-08) which increases the default open file limit. ([#52](https://github.com/turbot/steampipe-plugin-net/pull/52))
+
 ## v0.8.0 [2022-09-28]
 
 _Bug fixes_
