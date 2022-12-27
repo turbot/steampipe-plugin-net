@@ -25,7 +25,7 @@ select
 from
   net_connection
 where
-  and address = '68.183.153.44:ssh';
+  address = '68.183.153.44:ssh';
 ```
 
 ### Test a UDP connection to DNS server 1.1.1.1 on port 53
