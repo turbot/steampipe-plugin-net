@@ -248,6 +248,8 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 			m := new(dns.Msg)
 			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
 			m.RecursionDesired = true
+			// Increase buffer size for truncated responses
+			m.SetEdns0(4096, false)
 
 			co, err := c.Dial(dnsServer)
 			if err != nil {
