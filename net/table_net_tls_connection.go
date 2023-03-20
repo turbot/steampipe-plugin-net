@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"github.com/turbot/steampipe-plugin-net/constants"
-	"github.com/turbot/steampipe-plugin-sdk/v4/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin/transform"
+	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/transform"
 )
 
 //// TABLE DEFINITION
@@ -62,7 +62,7 @@ func tableNetTLSConnectionList(ctx context.Context, d *plugin.QueryData, h *plug
 	plugin.Logger(ctx).Trace("tableNetTLSConnectionList")
 
 	// You must pass 1 or more domain quals to the query
-	quals := d.KeyColumnQuals
+	quals := d.EqualsQuals
 	address := d.KeyColumnQualString("address")
 
 	// By default, consider all available protocols and ciphers
@@ -73,10 +73,10 @@ func tableNetTLSConnectionList(ctx context.Context, d *plugin.QueryData, h *plug
 	protocols := []string{"TLS v1.3", "TLS v1.2", "TLS v1.1", "TLS v1.0"}
 
 	// Check for additional quals
-	if d.KeyColumnQuals["version"] != nil {
+	if d.EqualsQuals["version"] != nil {
 		protocols = getQualListValues(ctx, quals, "version")
 	}
-	if d.KeyColumnQuals["cipher_suite_name"] != nil {
+	if d.EqualsQuals["cipher_suite_name"] != nil {
 		ciphers = getQualListValues(ctx, quals, "cipher_suite_name")
 	}
 

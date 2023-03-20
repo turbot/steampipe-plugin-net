@@ -8,9 +8,9 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/turbot/steampipe-plugin-sdk/v4/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin/transform"
+	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/transform"
 )
 
 func tableNetDNSRecord(ctx context.Context) *plugin.Table {
@@ -206,7 +206,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 	queryCols := d.QueryContext.Columns
 
 	// You must pass 1 or more domain quals to the query
-	if d.KeyColumnQuals["domain"] == nil {
+	if d.EqualsQuals["domain"] == nil {
 		logger.Trace("tableDNSRecordList", "No domain quals provided")
 		return nil, nil
 	}
@@ -222,7 +222,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 	c.Timeout = GetConfigTimeout(ctx, d)
 
 	var dnsServer string
-	if d.KeyColumnQuals["dns_server"] != nil {
+	if d.EqualsQuals["dns_server"] != nil {
 		dnsServer = d.KeyColumnQualString("dns_server")
 		// Append port if not specified
 		if !strings.HasSuffix(dnsServer, ":53") {

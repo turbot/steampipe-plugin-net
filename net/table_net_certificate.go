@@ -20,9 +20,9 @@ import (
 
 	"golang.org/x/crypto/ocsp"
 
-	"github.com/turbot/steampipe-plugin-sdk/v4/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin/transform"
+	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/transform"
 )
 
 type OCSP struct {
@@ -130,7 +130,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 	plugin.Logger(ctx).Trace("tableNetCertificateList")
 
 	// You must pass 1 or more domain quals to the query
-	if d.KeyColumnQuals["domain"] == nil {
+	if d.EqualsQuals["domain"] == nil {
 		plugin.Logger(ctx).Trace("tableDNSRecordList", "No domain quals provided")
 		return nil, nil
 	}
