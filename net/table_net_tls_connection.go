@@ -63,7 +63,7 @@ func tableNetTLSConnectionList(ctx context.Context, d *plugin.QueryData, h *plug
 
 	// You must pass 1 or more domain quals to the query
 	quals := d.EqualsQuals
-	address := d.KeyColumnQualString("address")
+	address := d.EqualsQualString("address")
 
 	// By default, consider all available protocols and ciphers
 	var ciphers []string
@@ -168,7 +168,7 @@ func checkFallbackSCSVSupport(ctx context.Context, d *plugin.QueryData, h *plugi
 		CipherSuites:       []uint16{constants.CipherSuites["TLS_FALLBACK_SCSV"]},
 	}
 
-	addr := d.KeyColumnQualString("address")
+	addr := d.EqualsQualString("address")
 
 	conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", addr, &cfg)
 	if err != nil {
@@ -198,7 +198,7 @@ func checkAPLNSupport(ctx context.Context, d *plugin.QueryData, h *plugin.Hydrat
 		NextProtos:         []string{"http/0.9", "http/1.0", "http/1.1", "spdy/1", "spdy/2", "spdy/3", "stun.turn", "stun.nat-discovery", "h2", "h2c", "webrtc", "c-webrtc", "ftp", "imap", "pop3", "managesieve", "coap", "xmpp-client", "xmpp-server", "acme-tls/1", "mqtt", "dot", "ntske/1", "sunrpc", "h3", "smb", "irc", "nntp", "nnsp", "doq"}, // A list of all available TLS ALPN protocol. Please refer: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 	}
 
-	addr := d.KeyColumnQualString("address")
+	addr := d.EqualsQualString("address")
 
 	conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", addr, &cfg)
 	if err != nil {

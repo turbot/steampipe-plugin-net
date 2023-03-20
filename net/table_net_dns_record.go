@@ -210,7 +210,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 		logger.Trace("tableDNSRecordList", "No domain quals provided")
 		return nil, nil
 	}
-	domain := d.KeyColumnQualString("domain")
+	domain := d.EqualsQualString("domain")
 
 	typeQualsWrapper := d.QueryContext.UnsafeQuals["type"]
 	types := getTypeQuals(typeQualsWrapper)
@@ -223,7 +223,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 
 	var dnsServer string
 	if d.EqualsQuals["dns_server"] != nil {
-		dnsServer = d.KeyColumnQualString("dns_server")
+		dnsServer = d.EqualsQualString("dns_server")
 		// Append port if not specified
 		if !strings.HasSuffix(dnsServer, ":53") {
 			dnsServer = net.JoinHostPort(dnsServer, "53")

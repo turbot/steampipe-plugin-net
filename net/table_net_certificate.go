@@ -134,7 +134,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		plugin.Logger(ctx).Trace("tableDNSRecordList", "No domain quals provided")
 		return nil, nil
 	}
-	dn := d.KeyColumnQualString("domain")
+	dn := d.EqualsQualString("domain")
 
 	// Create TLS config
 	cfg := tls.Config{
