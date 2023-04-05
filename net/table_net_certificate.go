@@ -8,7 +8,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -457,12 +456,12 @@ func isCertificateRevokedByCA(ctx context.Context, crlDistributionPoints []strin
 		}
 
 		// Check CRL is not outdated
-		if crlInfo.TBSCertList.NextUpdate.Before(time.Now()) {
+		if crlInfo.NextUpdate.Before(time.Now()) {
 			return nil, errors.New("CRL is outdated")
 		}
 
 		// Check if the certificate is listed in Certificate Revocation List (CRL)
-		for _, i := range crlInfo.TBSCertList.RevokedCertificates {
+		for _, i := range crlInfo.RevokedCertificates {
 			if fmt.Sprintf("%032x", i.SerialNumber) == serialNumber {
 				isRevoked = true
 				return &isRevoked, nil
@@ -473,7 +472,7 @@ func isCertificateRevokedByCA(ctx context.Context, crlDistributionPoints []strin
 }
 
 // Fetch CRL list
-func fetchCRL(url string) (*pkix.CertificateList, error) {
+func fetchCRL(url string) (*x509.RevocationList, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -487,7 +486,12 @@ func fetchCRL(url string) (*pkix.CertificateList, error) {
 	}
 	resp.Body.Close()
 
-	return x509.ParseCRL(body)
+	parseBody, err := x509.ParseRevocationList(body)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseBody, nil
 }
 
 // Parse OCSP revocation status to a human-readable format
