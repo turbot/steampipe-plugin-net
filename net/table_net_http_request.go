@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/turbot/steampipe-plugin-sdk/v4/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin/transform"
+	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/transform"
 )
 
 //// TABLE DEFINITION
@@ -51,7 +51,7 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	var requestBody string
 	headers := make(map[string]interface{})
 
-	queryCols := d.KeyColumnQuals
+	queryCols := d.EqualsQuals
 
 	urls := getQuals(queryCols["url"])
 	logger.Debug("listBaseRequestAttributes", "urls", urls)

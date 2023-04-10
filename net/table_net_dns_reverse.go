@@ -4,9 +4,9 @@ import (
 	"context"
 	"net"
 
-	"github.com/turbot/steampipe-plugin-sdk/v4/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v4/plugin/transform"
+	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/transform"
 )
 
 func tableNetDNSReverse(ctx context.Context) *plugin.Table {
@@ -32,7 +32,7 @@ type tableNetDNSReverseRow struct {
 }
 
 func tableNetDNSReverseList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
-	quals := d.KeyColumnQuals
+	quals := d.EqualsQuals
 	ip := quals["ip_address"].GetInetValue().GetAddr()
 	result := tableNetDNSReverseRow{
 		IPAddress: ip,
