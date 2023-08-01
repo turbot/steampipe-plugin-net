@@ -1,3 +1,31 @@
+## v0.9.0 [2023-04-10]
+
+_Dependencies_
+
+- Recompiled plugin with [steampipe-plugin-sdk v5.3.0](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v530-2023-03-16) which includes fixes for query cache pending item mechanism and aggregator connections not working for dynamic tables. ([#58](https://github.com/turbot/steampipe-plugin-net/pull/58))
+
+## v0.8.1 [2022-12-27]
+
+_Bug fixes_
+
+- Fixed the example query in `docs/index.md` to correctly check the expiry date of certificates associated with websites. ([#53](https://github.com/turbot/steampipe-plugin-net/pull/53)) (Thanks [@pdecat](https://github.com/pdecat) for the contribution!)
+- Fixed the typo in the example query of `net_connection` table document. ([#54](https://github.com/turbot/steampipe-plugin-net/pull/54)) (Thanks [@muescha](https://github.com/muescha) for the contribution!)
+
+_Dependencies_
+
+- Recompiled plugin with [steampipe-plugin-sdk v4.1.8](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v418-2022-09-08) which increases the default open file limit. ([#52](https://github.com/turbot/steampipe-plugin-net/pull/52))
+
+## v0.8.0 [2022-09-28]
+
+_Bug fixes_
+
+- Fixed the `net_certificate` table to return `null` instead of an error when the queried host doesn't exist in a DNS. ([#49](https://github.com/turbot/steampipe-plugin-net/pull/49)) (Thanks [@bdd4329](https://github.com/bdd4329) for the contribution!)
+
+_Dependencies_
+
+- Recompiled plugin with [steampipe-plugin-sdk v4.1.7](https://github.com/turbot/steampipe-plugin-sdk/blob/main/CHANGELOG.md#v417-2022-09-08) which includes several caching and memory management improvements. ([#46](https://github.com/turbot/steampipe-plugin-net/pull/46))
+- Recompiled plugin with Go version `1.19`. ([#46](https://github.com/turbot/steampipe-plugin-net/pull/46))
+
 ## v0.7.0 [2022-08-17]
 
 _Bug fixes_

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net"
 
-	"github.com/turbot/steampipe-plugin-sdk/v3/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v3/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
 )
 
 func tableNetConnection(ctx context.Context) *plugin.Table {
@@ -43,7 +43,7 @@ type connectionRow struct {
 }
 
 func tableNetConnectionList(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
-	quals := d.KeyColumnQuals
+	quals := d.EqualsQuals
 	var protocol, address string
 	if quals["protocol"] != nil {
 		protocol = quals["protocol"].GetStringValue()
