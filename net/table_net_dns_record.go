@@ -215,6 +215,7 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 	typeQualsWrapper := d.QueryContext.UnsafeQuals["type"]
 	types := getTypeQuals(typeQualsWrapper)
 
+	// Use UDP by default
 	c := new(dns.Client)
 	// Ensure a single request of the same question, type and class at a time.
 	c.SingleInflight = true
@@ -244,12 +245,14 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 			continue
 		}
 
-		listRecordSet := func(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+		listRecordSetUdp := func(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (interface{}, error) {
+			//listRecordSetUdp := func(ctx context.Context, d *plugin.QueryData, h *plugin.HydrateData) (dns.Msg, error) {
 			m := new(dns.Msg)
 			m.SetQuestion(dns.Fqdn(domain), dnsTypeEnumVal)
 			m.RecursionDesired = true
 			// Increase buffer size for truncated responses
-			m.SetEdns0(4096, false)
+			//m.SetEdns0(1232, false)
+			//m.SetEdns0(1500, true)
 
 			co, err := c.Dial(dnsServer)
 			if err != nil {
@@ -264,21 +267,39 @@ func tableDNSRecordList(ctx context.Context, d *plugin.QueryData, h *plugin.Hydr
 				return nil, err
 			}
 
+			// Retry with TCP if message is larger than 512 bytes
+			if r.Truncated {
+				logger.Warn("tableDNSRecordList", "Truncated", true)
+				c.Net = "tcp"
+				//r, _, err = c.ExchangeWithConn(m, co)
+				r, _, err = c.Exchange(m, dnsServer)
+				logger.Warn("tableDNSRecordList", "Testing")
+				logger.Warn("tableDNSRecordList", "Record", r.Answer)
+				if err != nil {
+					logger.Warn("tableDNSRecordList", "Error", err)
+					return nil, err
+				}
+				if r.Rcode != dns.RcodeSuccess {
+					logger.Warn("tableDNSRecordList", "Rcode unsuccessful")
+					return nil, err
+				}
+			}
+
 			logger.Debug("tableDNSRecordList", "Question", r.Question)
 			logger.Debug("tableDNSRecordList", "Answer", r.Answer)
 			logger.Debug("tableDNSRecordList", "Extra", r.Extra)
 			logger.Debug("tableDNSRecordList", "NS", r.Ns)
 
-			return r.Answer, nil
+			return r, nil
 		}
 
-		listRecordSetResponse, err := retryHydrate(ctx, d, h, listRecordSet)
+		listRecordSetResponse, err := retryHydrate(ctx, d, h, listRecordSetUdp)
 		if err != nil {
 			return nil, err
 		}
 
 		var listResponse []dns.RR
-		if listRecordSetResponse != nil {
+		if listRecordSetResponse.(dns.Msg).Answer != nil {
 			listResponse = listRecordSetResponse.([]dns.RR)
 		}
 
