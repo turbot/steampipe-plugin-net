@@ -43,6 +43,7 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 		Columns: []*plugin.Column{
 			// Top columns
 			{Name: "domain", Type: proto.ColumnType_STRING, Description: "[DEPRECATED] This column has been deprecated and will be removed in a future release, use address instead. Domain name the certificate represents."},
+			{Name: "address", Type: proto.ColumnType_STRING, Description: "Address to connect to, as specified in https://golang.org/pkg/net/#Dial.", Transform: transform.FromQual("address")},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
 			{Name: "revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "True if the certificate was revoked."},
@@ -132,22 +133,11 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 		InsecureSkipVerify: true,
 	}
 
-	if d.EqualsQuals["domain"] == nil {
-		plugin.Logger(ctx).Trace("tableDNSRecordList", "No domain quals provided")
-		return nil, nil
-	}
-	addr := d.EqualsQualString("domain")
-
-	// Check if port was given, e.g., "github.com:446"
-	_, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		// Default to common port 443
-		if err.(*net.AddrError).Err == "missing port in address" {
-			addr = net.JoinHostPort(addr, "443")
-		}
-
-		// Return any other errors
-		return nil, err
+	// Use `address` column first and fall back to `domain` column
+	addr := d.EqualsQualString("address")
+	dn := d.EqualsQualString("domain")
+	if addr == "" {
+		addr = net.JoinHostPort(dn, "443")
 	}
 
 	tcpConnectionCreated := false
@@ -189,7 +179,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 	chain := items
 	if len(chain) <= 0 {
-		return nil, errors.New("Certificate chain cannot be empty: " + addr)
+		return nil, errors.New("Certificate chain cannot be empty: " + dn)
 	}
 
 	certRows := []tableNetCertificateRow{}
