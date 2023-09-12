@@ -1,3 +1,13 @@
+## v0.10.0 [2023-09-12]
+
+_Deprecations_
+
+- Deprecated `domain` column in `net_certificate` table, which has been replaced by the `address` column. Please note that the `address` column requires a port, e.g., `github.com:443`. This column will be removed in a future version. ([#50](https://github.com/turbot/steampipe-plugin-net/pull/50))
+
+_What's new?_
+
+- Added `address` column to the `net_certificate` table to allow specifying a port with the domain name. ([#50](https://github.com/turbot/steampipe-plugin-net/pull/50))
+
 ## v0.9.0 [2023-04-10]
 
 _Dependencies_
