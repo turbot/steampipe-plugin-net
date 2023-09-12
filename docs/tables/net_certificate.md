@@ -2,7 +2,10 @@
 
 Certificate details for a domain.
 
-Note: An `address` of the format address:port (e.g., steampipe.io:443) must be provided.
+Note: A `domain` must be provided in all queries to this table.
+
+An optional port can be included, e.g., steampipe.io:636. If not provided, the
+port will default to 443.
 
 ## Examples
 
@@ -14,7 +17,7 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443';
+  address = 'steampipe.io';
 ```
 
 ### Get time until the certificate expires
@@ -26,7 +29,7 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443';
+  address = 'steampipe.io';
 ```
 
 ### Check if the certificate is currently valid
@@ -39,7 +42,7 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443',
+  address = 'steampipe.io',
   and not_before < current_timestamp
   and not_after > current_timestamp;
 ```
@@ -54,7 +57,7 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443',
+  address = 'steampipe.io',
   and revoked;
 ```
 
@@ -68,7 +71,7 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443';
+  address = 'steampipe.io';
 ```
 
 ### Check if certificate using insecure algorithm (e.g., MD2, MD5, SHA1)
@@ -82,6 +85,17 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443',
+  address = 'steampipe.io',
   and signature_algorithm like any (array['%SHA1%', '%MD2%', '%MD5%']);
+```
+
+### Use a specific TLS port
+
+```sql
+select
+  *
+from
+  net_certificate
+where
+  address = 'steampipe.io:464';
 ```
