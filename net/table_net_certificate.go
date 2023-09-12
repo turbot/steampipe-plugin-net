@@ -37,14 +37,13 @@ func tableNetCertificate(ctx context.Context) *plugin.Table {
 		Name:        "net_certificate",
 		Description: "Certificate details for a domain.",
 		List: &plugin.ListConfig{
-			Hydrate: tableNetCertificateList,
-			KeyColumns: plugin.KeyColumnSlice{
-				{Name: "domain", Require: plugin.Required, Operators: []string{"="}},
-			},
+			Hydrate:    tableNetCertificateList,
+			KeyColumns: plugin.AnyColumn([]string{"domain", "address"}),
 		},
 		Columns: []*plugin.Column{
 			// Top columns
-			{Name: "domain", Type: proto.ColumnType_STRING, Description: "Domain name the certificate represents."},
+			{Name: "domain", Type: proto.ColumnType_STRING, Description: "[DEPRECATED] This column has been deprecated and will be removed in a future release, use address instead. Domain name the certificate represents."},
+			{Name: "address", Type: proto.ColumnType_STRING, Description: "Address to connect to, as specified in https://golang.org/pkg/net/#Dial.", Transform: transform.FromQual("address")},
 			{Name: "common_name", Type: proto.ColumnType_STRING, Description: "Common name for the certificate."},
 			{Name: "not_after", Type: proto.ColumnType_TIMESTAMP, Description: "Time when the certificate expires. Also see not_before."},
 			{Name: "revoked", Type: proto.ColumnType_BOOL, Hydrate: getRevocationInformation, Description: "True if the certificate was revoked."},
@@ -128,21 +127,20 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 	plugin.Logger(ctx).Trace("tableNetCertificateList")
 
-	// You must pass 1 or more domain quals to the query
-	if d.EqualsQuals["domain"] == nil {
-		plugin.Logger(ctx).Trace("tableDNSRecordList", "No domain quals provided")
-		return nil, nil
-	}
-	dn := d.EqualsQualString("domain")
-
 	// Create TLS config
 	cfg := tls.Config{
 		Rand:               rand.Reader,
 		InsecureSkipVerify: true,
 	}
 
+	// Use `address` column first and fall back to `domain` column
+	addr := d.EqualsQualString("address")
+	dn := d.EqualsQualString("domain")
+	if addr == "" {
+		addr = net.JoinHostPort(dn, "443")
+	}
+
 	tcpConnectionCreated := false
-	addr := net.JoinHostPort(dn, "443")
 	dialer := &net.Dialer{
 		Timeout: time.Duration(3) * time.Second, // short, certificates should be fast
 		Control: func(network, address string, c syscall.RawConn) error { // This gets called once the TCP connection gets opened before handshake
