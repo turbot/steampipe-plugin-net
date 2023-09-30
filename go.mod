@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/miekg/dns v1.1.50
 	github.com/sethvargo/go-retry v0.2.4
-	github.com/turbot/steampipe-plugin-sdk/v5 v5.6.0
+	github.com/turbot/steampipe-plugin-sdk/v5 v5.6.1
 	golang.org/x/crypto v0.11.0
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 )
