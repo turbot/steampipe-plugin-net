@@ -39,7 +39,7 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443',
+  address = 'steampipe.io:443'
   and not_before < current_timestamp
   and not_after > current_timestamp;
 ```
@@ -54,7 +54,7 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443',
+  address = 'steampipe.io:443'
   and revoked;
 ```
 
@@ -82,6 +82,6 @@ select
 from
   net_certificate
 where
-  address = 'steampipe.io:443',
+  address = 'steampipe.io:443'
   and signature_algorithm like any (array['%SHA1%', '%MD2%', '%MD5%']);
 ```
