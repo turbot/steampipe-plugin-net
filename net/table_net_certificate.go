@@ -459,7 +459,7 @@ func isCertificateRevokedByCA(ctx context.Context, crlDistributionPoints []strin
 		}
 
 		// Check if the certificate is listed in Certificate Revocation List (CRL)
-		for _, i := range crlInfo.RevokedCertificates {
+		for _, i := range crlInfo.RevokedCertificateEntries {
 			if fmt.Sprintf("%032x", i.SerialNumber) == serialNumber {
 				isRevoked = true
 				return &isRevoked, nil
