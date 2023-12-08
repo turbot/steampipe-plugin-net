@@ -6,13 +6,13 @@ brand_color: "#005A9C"
 display_name: Net
 name: net
 description: Steampipe plugin for querying DNS records, certificates and other network information.
-og_description: Query networking information with SQL! Open source CLI. No DB required. 
+og_description: Query networking information with SQL! Zero ETL CLI. No DB required. 
 og_image: "/images/plugins/turbot/net-social-graphic.png"
 ---
 
 # Net + Steampipe
 
-[Steampipe](https://steampipe.io) is an open source CLI to instantly query cloud APIs using SQL.
+[Steampipe](https://steampipe.io) is a CLI to instantly query cloud APIs using SQL.
 
 The net plugin is a set of utility tables for steampipe to query attributes of X.509 certificates associated with websites, DNS records, and connectivity to specific network socket addresses.
 
@@ -71,5 +71,5 @@ connection "net" {
 
 ## Get involved
 
-- Open source: https://github.com/turbot/steampipe-plugin-net
+- GitHub: https://github.com/turbot/steampipe-plugin-net
 - Community: [Join #steampipe on Slack →](https://turbot.com/community/join)

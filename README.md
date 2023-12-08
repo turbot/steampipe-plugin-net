@@ -2,7 +2,7 @@
 
 # Net Plugin for Steampipe
 
-Use SQL to query DNS records, certificates and other network information. Open source CLI. No DB required.
+Use SQL to query DNS records, certificates and other network information. Zero ETL CLI. No DB required.
 
 * **[Get started →](https://hub.steampipe.io/plugins/turbot/net)**
 * Documentation: [Table definitions & examples](https://hub.steampipe.io/plugins/turbot/net/tables)
@@ -56,7 +56,7 @@ Further reading:
 
 ## Contributing
 
-Please see the [contribution guidelines](https://github.com/turbot/steampipe/blob/main/CONTRIBUTING.md) and our [code of conduct](https://github.com/turbot/steampipe/blob/main/CODE_OF_CONDUCT.md). All contributions are subject to the [Apache 2.0 open source license](https://github.com/turbot/steampipe-plugin-net/blob/main/LICENSE).
+Please see the [contribution guidelines](https://github.com/turbot/steampipe/blob/main/CONTRIBUTING.md) and our [code of conduct](https://github.com/turbot/steampipe/blob/main/CODE_OF_CONDUCT.md). All contributions are subject to the [BSL 1.1 license](https://github.com/turbot/steampipe-plugin-net/blob/main/LICENSE).
 
 `help wanted` issues:
 - [Steampipe](https://github.com/turbot/steampipe/labels/help%20wanted)
