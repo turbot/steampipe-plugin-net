@@ -70,7 +70,4 @@ connection "net" {
 }
 ```
 
-## Get involved
 
-- GitHub: https://github.com/turbot/steampipe-plugin-net
-- Community: [Join #steampipe on Slack →](https://turbot.com/community/join)
