@@ -11,6 +11,9 @@ A Net Certificate is a digital document that verifies a server's details. When a
 
 The `net_certificate` table provides insights into Net Certificates. As a Security Analyst, explore certificate-specific details through this table, including issuer, subject, validity, and associated metadata. Utilize it to uncover information about certificates, such as their validity status, issuer details, and the verification of the certificate authority.
 
+**Important Notes**
+- You must specify the `address` column of the format address:port (e.g., steamipe.io:443) in the `where` clause to query this table.
+
 ## Examples
 
 ### Basic info

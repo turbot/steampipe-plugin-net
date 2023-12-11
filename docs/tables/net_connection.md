@@ -11,6 +11,9 @@ A Network Connection is a link between two or more nodes in a network. It enable
 
 The `net_connection` table provides insights into various network connections. As a Network Engineer or IT Administrator, you can explore connection-specific details through this table, including statuses, types, and associated metadata. Utilize it to monitor and manage network connections, ensure optimal data transfer, and troubleshoot any connection issues.
 
+**Important Notes**
+- You must specify the `address` column in the `where` clause to query this table.
+
 ## Examples
 
 ### Test a TCP connection (the default protocol) to steampipe.io on port 443

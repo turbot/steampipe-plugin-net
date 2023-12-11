@@ -1,15 +1,44 @@
 ---
-title: "Steampipe Table: net_dns_record - Query OCI DNS Records using SQL"
-description: "Allows users to query DNS Records in OCI, specifically the details of each DNS record, providing insights into the DNS configuration and potential issues."
+title: "Steampipe Table: net_dns_record - Query DNS Records using SQL"
+description: "Allows users to query DNS Records, specifically the details of each DNS record, providing insights into the DNS configuration and potential issues."
 ---
 
-# Table: net_dns_record - Query OCI DNS Records using SQL
+# Table: net_dns_record - Query DNS Records using SQL
 
-Oracle Cloud Infrastructure's (OCI) DNS service is a scalable, reliable, and managed Domain Name System (DNS) service that provides a high-performance, global footprint for your public-facing internet resources and resolves DNS zones. It enables you to distribute traffic to your endpoints and ensures high availability and failover, thus improving the performance of your web applications.
+ DNS service is a scalable, reliable, and managed Domain Name System (DNS) service that provides a high-performance, global footprint for your public-facing internet resources and resolves DNS zones. It enables you to distribute traffic to your endpoints and ensures high availability and failover, thus improving the performance of your web applications.
 
 ## Table Usage Guide
 
-The `net_dns_record` table provides insights into DNS Records within Oracle Cloud Infrastructure's (OCI) DNS service. As a network administrator, you can explore DNS record-specific details through this table, including record types, domain names, and associated metadata. Utilize it to uncover information about DNS records, such as those with misconfigured settings, the association between domain names and IP addresses, and the verification of DNS record settings.
+The `net_dns_record` table provides insights into DNS Records. As a network administrator, you can explore DNS record-specific details through this table, including record types, domain names, and associated metadata. Utilize it to uncover information about DNS records, such as those with misconfigured settings, the association between domain names and IP addresses, and the verification of DNS record settings.
+
+**Important Notes**
+
+The default DNS server used for all requests is the Google global public server, 8.8.8.8. This default can be overriden in 2 ways:
+
+- Update the `dns_server` configuration argument.
+- Specify `dns_server` in the query, which overrides the default and `dns_server` configuration argument. For instance, to use Cloudflare's global public server instead:
+
+```sql+postgres
+select
+  *
+from
+  net_dns_record
+where
+  domain = 'steampipe.io'
+  and dns_server = '1.1.1.1:53';
+```
+
+```sql+sqlite
+select
+  *
+from
+  net_dns_record
+where
+  domain = 'steampipe.io'
+  and dns_server = '1.1.1.1:53';
+```
+
+- A `domain` must be provided in all queries to this table.
 
 ## Examples
 

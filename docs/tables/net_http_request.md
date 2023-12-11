@@ -11,6 +11,9 @@ A Network HTTP Request is a service that allows you to send HTTP requests and re
 
 The `net_http_request` table provides insights into HTTP requests and responses over the network. As a Network Engineer or a Developer, explore details through this table, including request method, status code, response time, and associated metadata. Utilize it to monitor network traffic, analyze performance of your web services, and troubleshoot issues related to HTTP requests and responses.
 
+**Important Notes**
+- You must specify the `url` column in the `where` clause to query this table.
+
 ## Examples
 
 ### Send a GET request to GitHub API
