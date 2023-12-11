@@ -8,6 +8,7 @@ name: net
 description: Steampipe plugin for querying DNS records, certificates and other network information.
 og_description: Query networking information with SQL! Zero ETL CLI. No DB required. 
 og_image: "/images/plugins/turbot/net-social-graphic.png"
+engines: ["steampipe", "sqlite", "postgres", "export"]
 ---
 
 # Net + Steampipe
