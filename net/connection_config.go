@@ -5,21 +5,11 @@ import (
 	"time"
 
 	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/schema"
 )
 
 type netConfig struct {
-	Timeout   *int    `cty:"timeout"`
-	DNSServer *string `cty:"dns_server"`
-}
-
-var ConfigSchema = map[string]*schema.Attribute{
-	"timeout": {
-		Type: schema.TypeInt,
-	},
-	"dns_server": {
-		Type: schema.TypeString,
-	},
+	Timeout   *int    `hcl:"timeout"`
+	DNSServer *string `hcl:"dns_server"`
 }
 
 func ConfigInstance() interface{} {
