@@ -1,13 +1,13 @@
 module github.com/turbot/steampipe-plugin-net
 
-go 1.21.0
+go 1.22.4
 
-toolchain go1.21.1
+toolchain go1.22.6
 
 require (
 	github.com/miekg/dns v1.1.50
 	github.com/sethvargo/go-retry v0.2.4
-	github.com/turbot/steampipe-plugin-sdk/v5 v5.10.1
+	github.com/turbot/steampipe-plugin-sdk/v5 v5.10.3
 	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 )
