@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -103,15 +102,23 @@ func getTLSConnectionRowData(ctx context.Context, address string, protocol strin
 		CipherSuiteName: cipher,
 		CipherSuiteID:   fmt.Sprintf("0x%04x", constants.CipherSuites[cipher]),
 	}
+
 	if cipherSuiteIsSupported(protocol, cipher) {
 		conn, err := getTLSConnection(ctx, address, protocol, cipher)
-		if err == nil {
-			if conn != nil {
-				r.ServerName = conn.ConnectionState().ServerName
-				r.HandshakeCompleted = conn.ConnectionState().HandshakeComplete
-				r.LocalAddress = conn.LocalAddr().String()
-				r.RemoteAddress = conn.RemoteAddr().String()
-			}
+		if err == nil && conn != nil {
+			// Fetch the negotiated cipher suite from the connection state
+			state := conn.ConnectionState()
+			negotiatedCipherID := state.CipherSuite
+			negotiatedCipherName := tls.CipherSuiteName(negotiatedCipherID) // Get the name of the cipher suite
+
+			// Update the row with the negotiated cipher suite
+			r.CipherSuiteName = negotiatedCipherName
+			r.CipherSuiteID = fmt.Sprintf("0x%04x", negotiatedCipherID)
+
+			r.ServerName = state.ServerName
+			r.HandshakeCompleted = state.HandshakeComplete
+			r.LocalAddress = conn.LocalAddr().String()
+			r.RemoteAddress = conn.RemoteAddr().String()
 		} else {
 			r.Error = err.Error()
 		}
@@ -129,14 +136,16 @@ func getTLSConnection(ctx context.Context, address string, protocol string, ciph
 		InsecureSkipVerify: true,
 	}
 
+	// Set protocol versions
 	if protocol != "" {
 		if _, ok := constants.TLSVersions[protocol]; !ok {
-			return nil, fmt.Errorf("%s is not a valid protocol version. Possible values are: TLS v1.0, TLS v1.1, TLS v1.2 and TLS v1.3", protocol)
+			return nil, fmt.Errorf("%s is not a valid protocol version. Possible values are: TLS v1.0, TLS v1.1, TLS v1.2, and TLS v1.3", protocol)
 		}
 		cfg.MaxVersion = constants.TLSVersions[protocol]
 		cfg.MinVersion = constants.TLSVersions[protocol]
 	}
 
+	// Set cipher suites
 	if cipher != "" {
 		if _, ok := constants.CipherSuites[cipher]; !ok {
 			return nil, fmt.Errorf("%s is not a valid cipher suite", cipher)
@@ -144,10 +153,11 @@ func getTLSConnection(ctx context.Context, address string, protocol string, ciph
 		cfg.CipherSuites = []uint16{constants.CipherSuites[cipher]}
 	}
 
+	// Dial the TLS connection
 	conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", address, &cfg)
 	if err != nil {
 		plugin.Logger(ctx).Error("net_tls_connection.getTLSConnection", "TLS connection failed: ", err)
-		return nil, errors.New(err.Error())
+		return nil, err
 	}
 
 	return conn, nil
