@@ -1,3 +1,14 @@
+## v1.1.0 [2025-04-18]
+
+_Bug fixes_
+
+- Fixed the `cipher_suite_name` and `cipher_suite_id` columns in `net_tls_connection` table to correctly rerturn the negotiated cipher suite instead of requested cipher suite value per [Automatic cipher suite ordering in crypto/tls](https://go.dev/blog/tls-cipher-suites). ([#92](https://github.com/turbot/steampipe-plugin-net/pull/92))
+
+_Dependencies_
+
+- Recompiled plugin with Go version `1.23.1`. ([#103](https://github.com/turbot/steampipe-plugin-net/pull/103))
+- Recompiled plugin with [steampipe-plugin-sdk v5.11.5](https://github.com/turbot/steampipe-plugin-sdk/blob/v5.11.5/CHANGELOG.md#v5115-2025-03-31) that addresses critical and high vulnerabilities in dependent packages. ([#103](https://github.com/turbot/steampipe-plugin-net/pull/103))
+
 ## v1.0.0 [2024-10-22]
 
 There are no significant changes in this plugin version; it has been released to align with [Steampipe's v1.0.0](https://steampipe.io/changelog/steampipe-cli-v1-0-0) release. This plugin adheres to [semantic versioning](https://semver.org/#semantic-versioning-specification-semver), ensuring backward compatibility within each major version.
