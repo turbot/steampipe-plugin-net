@@ -1,4 +1,8 @@
-## v1.1.0 [2025-04-17]
+## v1.1.0 [2025-04-18]
+
+_Bug fixes_
+
+- Fixed the `cipher_suite_name` and `cipher_suite_id` columns in `net_tls_connection` table to correctly rerturn the negotiated cipher suite instead of requested cipher suite value per [Automatic cipher suite ordering in crypto/tls](https://go.dev/blog/tls-cipher-suites). ([#92](https://github.com/turbot/steampipe-plugin-net/pull/92))
 
 _Dependencies_
 
