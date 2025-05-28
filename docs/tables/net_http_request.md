@@ -187,3 +187,32 @@ from
 where
   url = 'http://microsoft.com';
 ```
+
+### Send a GET request with TLS certificate verification disabled
+Explore how to make a request to a site with an invalid or self-signed certificate by disabling TLS certificate verification. This is similar to using curl with the -k flag.
+
+```sql+postgres
+select
+  url,
+  method,
+  response_status_code,
+  jsonb_pretty(response_body::jsonb) as response_body
+from
+  net_http_request
+where
+  url = 'https://self-signed.example.com'
+  and insecure = true;
+```
+
+```sql+sqlite
+select
+  url,
+  method,
+  response_status_code,
+  response_body
+from
+  net_http_request
+where
+  url = 'https://self-signed.example.com'
+  and insecure = true;
+```

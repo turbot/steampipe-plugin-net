@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"crypto/tls"
 
 	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
 	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
@@ -28,12 +29,14 @@ func tableNetHTTPRequest() *plugin.Table {
 				{Name: "follow_redirects", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: "exact"},
 				{Name: "request_headers", Require: plugin.Optional, CacheMatch: "exact"},
 				{Name: "request_body", Require: plugin.Optional, CacheMatch: "exact"},
+				{Name: "insecure", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: "exact"},
 			},
 		},
 		Columns: []*plugin.Column{
 			{Name: "url", Transform: transform.FromField("Url"), Type: proto.ColumnType_STRING, Description: "URL of the site."},
 			{Name: "method", Type: proto.ColumnType_STRING, Description: "Specifies the HTTP method (GET, POST)."},
 			{Name: "follow_redirects", Type: proto.ColumnType_BOOL, Description: "If true, the requests will follow the redirects."},
+			{Name: "insecure", Type: proto.ColumnType_BOOL, Description: "If true, TLS certificate verification will be skipped (similar to curl -k)."},
 			{Name: "request_body", Type: proto.ColumnType_STRING, Description: "The request's body."},
 			{Name: "request_headers", Type: proto.ColumnType_JSON, Transform: transform.FromQual("request_headers"), Description: "A map of headers passed in the request."},
 			{Name: "response_status_code", Type: proto.ColumnType_INT, Description: "HTTP status code is a server response to a browser's request."},
@@ -50,6 +53,7 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	var methods []string
 	var requestBody string
 	headers := make(map[string]interface{})
+	insecure := false
 
 	queryCols := d.EqualsQuals
 
@@ -60,6 +64,18 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 		methods = getQuals(queryCols["method"])
 	} else {
 		methods = []string{"GET"}
+	}
+
+	// Check for insecure option
+	if d.Quals["insecure"] != nil {
+		for _, q := range d.Quals["insecure"].Quals {
+			switch q.Operator {
+			case "=":
+				insecure = q.Value.GetBoolValue()
+			case "<>":
+				insecure = !q.Value.GetBoolValue()
+			}
+		}
 	}
 
 	requestHeadersString := queryCols["request_headers"].GetJsonbValue()
@@ -86,7 +102,7 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 	logger.Debug("listBaseRequestAttributes", "headers", headers)
 
 	for _, url := range urls {
-		d.StreamListItem(ctx, baseRequestAttributes{url, methods, requestBody, headers})
+		d.StreamListItem(ctx, baseRequestAttributes{url, methods, requestBody, headers, insecure})
 	}
 
 	return nil, nil
@@ -102,7 +118,14 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 	methods := baseRequestAttribute.Methods
 	headers := baseRequestAttribute.Headers
 	requestBody := baseRequestAttribute.RequestBody
-	client := &http.Client{}
+	insecure := baseRequestAttribute.Insecure
+
+	// Create custom transport with TLS config if insecure is true
+	transport := &http.Transport{}
+	if insecure {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	client := &http.Client{Transport: transport}
 
 	// Set true to follow the redirects
 	// Default set to true
@@ -159,6 +182,7 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 			Method:          method,
 			RequestBody:     requestBody,
 			FollowRedirects: followRedirects,
+			Insecure:        insecure,
 		}
 
 		// Make request

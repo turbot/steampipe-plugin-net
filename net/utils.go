@@ -62,6 +62,7 @@ type tableNetWebRequestRow struct {
 	RequestBody                        string
 	RequestHeaders                     string
 	FollowRedirects                    bool
+	Insecure                           bool
 	Status                             int
 	ResponseStatusCode                 int
 	ResponseHeaders                    map[string][]string
@@ -82,6 +83,7 @@ type baseRequestAttributes struct {
 	Methods     []string
 	RequestBody string
 	Headers     map[string]interface{}
+	Insecure    bool
 }
 
 func removeInvalidUTF8Char(str string) string {
