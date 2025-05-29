@@ -196,7 +196,8 @@ select
   url,
   method,
   response_status_code,
-  jsonb_pretty(response_body::jsonb) as response_body
+  response_error,
+  response_body
 from
   net_http_request
 where
@@ -209,6 +210,7 @@ select
   url,
   method,
   response_status_code,
+  response_error,
   response_body
 from
   net_http_request
