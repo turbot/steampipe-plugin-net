@@ -200,7 +200,7 @@ select
 from
   net_http_request
 where
-  url = 'https://self-signed.example.com'
+  url = 'https://self-signed.badssl.com'
   and insecure = true;
 ```
 
@@ -213,6 +213,6 @@ select
 from
   net_http_request
 where
-  url = 'https://self-signed.example.com'
+  url = 'https://self-signed.badssl.com'
   and insecure = true;
 ```
