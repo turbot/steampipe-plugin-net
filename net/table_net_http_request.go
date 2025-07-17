@@ -26,12 +26,12 @@ func tableNetHTTPRequest() *plugin.Table {
 			Hydrate:       listRequestResponses,
 			KeyColumns: plugin.KeyColumnSlice{
 				{Name: "url", Require: plugin.Required},
-				{Name: "method", Require: plugin.Optional, CacheMatch: "exact"},
-				{Name: "follow_redirects", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: "exact"},
-				{Name: "request_headers", Require: plugin.Optional, CacheMatch: "exact"},
-				{Name: "request_body", Require: plugin.Optional, CacheMatch: "exact"},
-				{Name: "insecure", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: "exact"},
-				{Name: "user_credentials", Require: plugin.Optional, CacheMatch: "exact"},
+				{Name: "method", Require: plugin.Optional, CacheMatch: query_cache.CacheMatchExact},
+				{Name: "follow_redirects", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: query_cache.CacheMatchExact},
+				{Name: "request_headers", Require: plugin.Optional, CacheMatch: query_cache.CacheMatchExact},
+				{Name: "request_body", Require: plugin.Optional, CacheMatch: query_cache.CacheMatchExact},
+				{Name: "insecure", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: query_cache.CacheMatchExact},
+				{Name: "user_credentials", Require: plugin.Optional, CacheMatch: query_cache.CacheMatchExact},
 			},
 		},
 		Columns: []*plugin.Column{
