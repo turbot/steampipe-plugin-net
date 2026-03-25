@@ -3,6 +3,8 @@ package net
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -28,14 +30,18 @@ func tableNetHTTPRequest() *plugin.Table {
 				{Name: "follow_redirects", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: "exact"},
 				{Name: "request_headers", Require: plugin.Optional, CacheMatch: "exact"},
 				{Name: "request_body", Require: plugin.Optional, CacheMatch: "exact"},
+				{Name: "insecure", Require: plugin.Optional, Operators: []string{"=", "<>"}, CacheMatch: "exact"},
+				{Name: "user_credentials", Require: plugin.Optional, CacheMatch: "exact"},
 			},
 		},
 		Columns: []*plugin.Column{
 			{Name: "url", Transform: transform.FromField("Url"), Type: proto.ColumnType_STRING, Description: "URL of the site."},
 			{Name: "method", Type: proto.ColumnType_STRING, Description: "Specifies the HTTP method (GET, POST)."},
 			{Name: "follow_redirects", Type: proto.ColumnType_BOOL, Description: "If true, the requests will follow the redirects."},
+			{Name: "insecure", Type: proto.ColumnType_BOOL, Description: "If true, TLS certificate verification will be skipped (similar to curl -k)."},
 			{Name: "request_body", Type: proto.ColumnType_STRING, Description: "The request's body."},
 			{Name: "request_headers", Type: proto.ColumnType_JSON, Transform: transform.FromQual("request_headers"), Description: "A map of headers passed in the request."},
+			{Name: "user_credentials", Type: proto.ColumnType_STRING, Transform: transform.FromQual("user_credentials"), Description: "Basic auth credentials in the format username:password (similar to curl --user)."},
 			{Name: "response_status_code", Type: proto.ColumnType_INT, Description: "HTTP status code is a server response to a browser's request."},
 			{Name: "response_body", Type: proto.ColumnType_STRING, Description: "Represents the response body."},
 			{Name: "response_error", Type: proto.ColumnType_STRING, Description: "Represents an error or failure, either from a non-successful HTTP status, an error while executing the request, or some other failure which occurred during the parsing of the response.", Transform: transform.FromField("Error")},
@@ -49,7 +55,9 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 
 	var methods []string
 	var requestBody string
+	var userCredentials string
 	headers := make(map[string]interface{})
+	insecure := false
 
 	queryCols := d.EqualsQuals
 
@@ -60,6 +68,18 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 		methods = getQuals(queryCols["method"])
 	} else {
 		methods = []string{"GET"}
+	}
+
+	// Check for insecure option
+	if d.Quals["insecure"] != nil {
+		for _, q := range d.Quals["insecure"].Quals {
+			switch q.Operator {
+			case "=":
+				insecure = q.Value.GetBoolValue()
+			case "<>":
+				insecure = !q.Value.GetBoolValue()
+			}
+		}
 	}
 
 	requestHeadersString := queryCols["request_headers"].GetJsonbValue()
@@ -81,12 +101,19 @@ func listBaseRequestAttributes(ctx context.Context, d *plugin.QueryData, h *plug
 		requestBody = requestBodyData
 	}
 
+	// Get user credentials if provided
+	if creds, present := getAuthHeaderQuals(queryCols["user_credentials"]); present {
+		userCredentials = creds
+	}
+
 	logger.Debug("listBaseRequestAttributes", "urls", urls)
 	logger.Debug("listBaseRequestAttributes", "methods", methods)
 	logger.Debug("listBaseRequestAttributes", "headers", headers)
+	logger.Debug("listBaseRequestAttributes", "insecure", insecure)
+	logger.Debug("listBaseRequestAttributes", "user_credentials", userCredentials != "")
 
 	for _, url := range urls {
-		d.StreamListItem(ctx, baseRequestAttributes{url, methods, requestBody, headers})
+		d.StreamListItem(ctx, baseRequestAttributes{url, methods, requestBody, headers, insecure, userCredentials})
 	}
 
 	return nil, nil
@@ -102,7 +129,15 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 	methods := baseRequestAttribute.Methods
 	headers := baseRequestAttribute.Headers
 	requestBody := baseRequestAttribute.RequestBody
-	client := &http.Client{}
+	insecure := baseRequestAttribute.Insecure
+	userCredentials := baseRequestAttribute.UserCredentials
+
+	// Create custom transport with TLS config if insecure is true
+	transport := &http.Transport{}
+	if insecure {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	client := &http.Client{Transport: transport}
 
 	// Set true to follow the redirects
 	// Default set to true
@@ -151,7 +186,17 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 			continue
 		}
 
+		// Add request headers
 		req = addRequestHeaders(req, headers)
+
+		// Add Basic Authentication if user credentials are provided
+		if userCredentials != "" {
+			// Encode the credentials in base64
+			auth := base64.StdEncoding.EncodeToString([]byte(userCredentials))
+			req.Header.Set("Authorization", "Basic "+auth)
+			logger.Debug("listRequestResponses", "added basic auth header", true)
+		}
+
 		logger.Debug("listRequestResponses", "request", req)
 
 		item := tableNetWebRequestRow{
@@ -159,6 +204,7 @@ func listRequestResponses(ctx context.Context, d *plugin.QueryData, h *plugin.Hy
 			Method:          method,
 			RequestBody:     requestBody,
 			FollowRedirects: followRedirects,
+			Insecure:        insecure,
 		}
 
 		// Make request
