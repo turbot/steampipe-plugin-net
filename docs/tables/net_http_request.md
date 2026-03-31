@@ -187,3 +187,98 @@ from
 where
   url = 'http://microsoft.com';
 ```
+
+### Send a GET request with TLS certificate verification disabled
+Explore how to make a request to a site with an invalid or self-signed certificate by disabling TLS certificate verification. This is similar to using curl with the -k flag.
+
+```sql+postgres
+select
+  url,
+  method,
+  response_status_code,
+  response_error,
+  response_body
+from
+  net_http_request
+where
+  url = 'https://self-signed.badssl.com'
+  and insecure = true;
+```
+
+```sql+sqlite
+select
+  url,
+  method,
+  response_status_code,
+  response_error,
+  response_body
+from
+  net_http_request
+where
+  url = 'https://self-signed.badssl.com'
+  and insecure = true;
+```
+
+### Send a GET request with Basic Authentication
+Explore how to authenticate with APIs that require Basic Authentication by providing credentials in a simple username:password format. This is equivalent to using curl's --user flag and automatically handles the base64 encoding of credentials.
+
+```sql+postgres
+select
+  url,
+  method,
+  response_status_code,
+  response_headers,
+  response_body
+from
+  net_http_request
+where
+  url = 'https://httpbin.org/basic-auth/myuser/mypass'
+  and user_credentials = 'myuser:mypass';
+```
+
+```sql+sqlite
+select
+  url,
+  method,
+  response_status_code,
+  response_headers,
+  response_body
+from
+  net_http_request
+where
+  url = 'https://httpbin.org/basic-auth/myuser/mypass'
+  and user_credentials = 'myuser:mypass';
+```
+
+### Send a request with Basic Authentication and skip TLS verification
+This example demonstrates how to connect to an API with a self-signed certificate while using Basic Authentication. This is useful for internal or development APIs that require authentication but don't have valid certificates.
+
+```sql+postgres
+select
+  url,
+  method,
+  response_status_code,
+  response_headers,
+  response_body
+from
+  net_http_request
+where
+  url = 'https://internal-api.example.com:52311/api/help'
+  and user_credentials = 'apiuser:secretpass'
+  and insecure = true;
+```
+
+```sql+sqlite
+select
+  url,
+  method,
+  response_status_code,
+  response_headers,
+  response_body
+from
+  net_http_request
+where
+  url = 'https://internal-api.example.com:52311/api/help'
+  and user_credentials = 'apiuser:secretpass'
+  and insecure = true;
+```
