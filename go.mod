@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/miekg/dns v1.1.50
-	github.com/sethvargo/go-retry v0.2.4
+	github.com/sethvargo/go-retry v0.3.0
 	github.com/turbot/steampipe-plugin-sdk/v5 v5.13.1
 	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
