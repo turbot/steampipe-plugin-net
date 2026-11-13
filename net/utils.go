@@ -10,8 +10,8 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/sethvargo/go-retry"
-	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v6/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v6/plugin"
 )
 
 func getQuals(qualValue *proto.QualValue) []string {
@@ -188,7 +188,6 @@ func retryHydrate(ctx context.Context, d *plugin.QueryData, hydrateData *plugin.
 
 	// Create the backoff based on the given mode
 	backoff := retry.NewFibonacci(interval * time.Millisecond)
-
 
 	// Ensure the maximum value is 2.5s. In this scenario, the sleep values would be
 	// 0.5s, 0.5s, 1s, 1.5s, 2.5s, 2.5s, 2.5s...

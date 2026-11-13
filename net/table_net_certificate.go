@@ -19,9 +19,9 @@ import (
 
 	"golang.org/x/crypto/ocsp"
 
-	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
-	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/transform"
+	"github.com/turbot/steampipe-plugin-sdk/v6/grpc/proto"
+	"github.com/turbot/steampipe-plugin-sdk/v6/plugin"
+	"github.com/turbot/steampipe-plugin-sdk/v6/plugin/transform"
 )
 
 type OCSP struct {
@@ -168,7 +168,7 @@ func tableNetCertificateList(ctx context.Context, d *plugin.QueryData, h *plugin
 
 		return nil, errors.New("TLS connection failed: " + err.Error())
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	items := conn.ConnectionState().PeerCertificates
 
@@ -301,9 +301,9 @@ func getCertificateTransparencyLogs(ctx context.Context, d *plugin.QueryData, h 
 
 	statusOK := resp.StatusCode >= 200 && resp.StatusCode < 300
 	if !statusOK {
-		return nil, fmt.Errorf("failed to complete the request for %s: %v.", domainName, resp.Status)
+		return nil, fmt.Errorf("failed to complete the request for %s: %v", domainName, resp.Status)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -355,10 +355,7 @@ func getRevocationInformation(ctx context.Context, d *plugin.QueryData, h *plugi
 		return nil, errors.New("failed to retrieve certificate revocation information")
 	}
 
-	isRevoked := false
-	if *isRevokedByCAOrOwner || ocspCertificateRevocationInfo.StatusString == "revoked" {
-		isRevoked = true
-	}
+	isRevoked := *isRevokedByCAOrOwner || ocspCertificateRevocationInfo.StatusString == "revoked"
 	certRevocationInfo["Revoked"] = isRevoked
 
 	return certRevocationInfo, nil
@@ -482,7 +479,7 @@ func fetchCRL(url string) (*x509.RevocationList, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	parseBody, err := x509.ParseRevocationList(body)
 	if err != nil {
